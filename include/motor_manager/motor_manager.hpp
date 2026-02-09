@@ -27,7 +27,7 @@ public:
 
     uint32_t period() const { return period_; }
     
-    uint8_t number_of_drivers() const { return number_of_drivers_; } 
+    uint8_t number_of_slaves() const { return number_of_slaves_; } 
 
 private:
     void load_configurations(const std::string& config_file);

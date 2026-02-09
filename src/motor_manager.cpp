@@ -98,8 +98,7 @@ void mmns::MotorManager::load_configurations(const std::string& config_file)
         drivers_.at(d_cfg.id)->load_parameters(d["param_file"].as<std::string>());
     }
 
-    number_of_masters_ = m_idx;
-    number_of_drivers_ = d_idx;
+    number_of_slaves_ = s_idx;
 }
 
 void mmns::MotorManager::initialize_motor_manager()
@@ -110,7 +109,7 @@ void mmns::MotorManager::initialize_motor_manager()
         m_iter.second->initialize();
     }
     
-    for (uint8_t i = 0; i < number_of_drivers_; ++i) {
+    for (uint8_t i = 0; i < number_of_slaves_; ++i) {
         uint8_t mid = controllers_[i]->master_id();
         uint8_t did = controllers_[i]->driver_id();
         controllers_[i]->initialize(*masters_.at(mid), *drivers_.at(did));

@@ -34,7 +34,7 @@ void mmns::MinasDriver::load_parameters(const std::string& param_file)
             int32_t value = static_cast<int32_t>(config_.lower / (2 * M_PI) * config_.pulse_per_revolution);
             fill_data<int32_t>(value, e_cfg.data);
         } else if (e_cfg.id == ID_MAX_POSITION_LIMIT) {
-            int32_t value = static_cast<int32_t>(config_.lower / (2 * M_PI) * config_.pulse_per_revolution);
+            int32_t value = static_cast<int32_t>(config_.upper / (2 * M_PI) * config_.pulse_per_revolution);
             fill_data<int32_t>(value, e_cfg.data);
         } else if (e_cfg.id == ID_MAX_MOTOR_SPEED) {
             fill_data<uint32_t>(static_cast<uint32_t>(config_.speed), e_cfg.data);
@@ -85,7 +85,7 @@ void mmns::MinasDriver::load_parameters(const std::string& param_file)
     number_of_items_ = o_idx;
 
     YAML::Node entries = root["entries"];
-    if (!objects || !objects.IsSequence()) {
+    if (!entries || !entries.IsSequence()) {
         throw std::runtime_error("Invalid entries configuration.");
     }
 
@@ -110,8 +110,8 @@ void mmns::MinasDriver::load_parameters(const std::string& param_file)
         e_idx++;
     }
     number_of_entries_ = e_idx;
-    number_of_tx_pdos_ = c_idx;
-    number_of_rx_pdos_ = s_idx;
+    number_of_rx_pdos_ = c_idx;
+    number_of_tx_pdos_ = s_idx;
 
     printf("[MinasDriver::load_parameters][driver id: %u] Parameter load succeed.\n", config_.id);
 }

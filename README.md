@@ -23,7 +23,7 @@ Config: `config/example.yaml` (period, masters with type/slaves, drivers with ty
 ## Types and Config
 
 - **CommunicationType** (in `types.hpp`): `Ethercat`, `Canopen`, `Dynamixel` (already defined; only EtherCAT is implemented).
-- **DriverType**: `Minas`, `Zeroerr`, `Dynamxiel` (only Minas implemented).
+- **DriverType**: `Minas`, `Zeroerr`, `Dynamixel` (only Minas implemented).
 - **motor_state_t**: controlword, statusword, errorcode, position, velocity, torque; **entry_table_t**: index/subindex/type/size for SDO and PDO-style data.
 
 ## Adding CANopen and Dynamixel
@@ -61,10 +61,16 @@ cmake -S .. -B . -DCMAKE_BUILD_TYPE=Release   # use Debug for debug build
 sudo cmake --build . --target install
 ```
 
-**Run the test executable** (from the `build` directory):
+**Run the test executable** (from the `build` directory; requires a config file):
 
 ```bash
-./motor_manager_test
+./motor_manager_test /path/to/config.yaml
+```
+
+Example using the included config:
+
+```bash
+./motor_manager_test ../config/example.yaml
 ```
 
 ## Summary

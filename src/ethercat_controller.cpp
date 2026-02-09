@@ -91,12 +91,12 @@ void mmns::EthercatController::write(const motor_state_t& cmd)
             entries[i].type = ValueType::S32;
             fill_data<int32_t>(value, entries[i].data);
         } else if (cmd.control_id[i] == ID_TARGET_VELOCITY) {
-            int32_t value = driver_->velocity(cmd.position);
+            int32_t value = driver_->velocity(cmd.velocity);
             entries[i].id = ID_TARGET_VELOCITY;
             entries[i].type = ValueType::S32;
             fill_data<int32_t>(value, entries[i].data);
         } else if (cmd.control_id[i] == ID_TARGET_TORQUE) {
-            int16_t value = driver_->torque(cmd.position);
+            int16_t value = driver_->torque(cmd.torque);
             entries[i].id = ID_TARGET_TORQUE;
             entries[i].type = ValueType::S16;
             fill_data<int16_t>(value, entries[i].data);
@@ -337,10 +337,10 @@ void mmns::EthercatController::check_slave_config_state()
         printf(" AL state 0x%02X", s.al_state);
     }
     if (s.online != slave_config_state_.online) {
-        printf(" %s", driver_id_, s.online ? "online" : "offline");
+        printf(" %s", s.online ? "online" : "offline");
     }
     if (s.operational != slave_config_state_.operational) {
-        printf(" %soperational", driver_id_, s.operational ? "" : "Not ");
+        printf(" %soperational", s.operational ? "" : "Not ");
     }
     printf("\n");
     slave_config_state_ = s;
