@@ -4,6 +4,7 @@
 #include <string>
 #include <memory>
 #include <cstdint>
+#include <unordered_map>
 
 #include "motor_manager/core/motor_master.hpp"
 #include "motor_manager/core/motor_driver.hpp"
@@ -43,15 +44,13 @@ private:
     
     void read_motor_state(motor_state_t* states);
 
-    std::unique_ptr<MotorMaster> masters_[MAX_MASTER_SIZE];
+    std::unordered_map<uint8_t, std::unique_ptr<MotorMaster>> masters_;
     
-    std::unique_ptr<MotorDriver> drivers_[MAX_DRIVER_SIZE];
+    std::unordered_map<uint8_t, std::unique_ptr<MotorDriver>> drivers_;
     
-    std::unique_ptr<MotorController> controllers_[MAX_DRIVER_SIZE];
+    std::unique_ptr<MotorController> controllers_[MAX_SLAVE_SIZE];
 
-    uint8_t number_of_masters_{0};
-    
-    uint8_t number_of_drivers_{0};
+    uint8_t number_of_slaves_{0};
     
     uint32_t period_{0};
     

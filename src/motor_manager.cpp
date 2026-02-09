@@ -20,7 +20,7 @@ void mmns::MotorManager::load_configurations(const std::string& config_file)
     if (!root) {
         throw std::runtime_error("Failed to load configuration file.");
     }
-
+    
     period_ = root["period"].as<uint32_t>();
 
     YAML::Node masters = root["masters"];
@@ -28,7 +28,9 @@ void mmns::MotorManager::load_configurations(const std::string& config_file)
         throw std::runtime_error("Invalid masters configuration.");
     }
 
-    uint8_t m_idx{0}, s_idx{0};
+    masters_.reserve(MAX_MASTER_SIZE);
+
+    uint8_t s_idx{0};
     for (const auto& m : masters) {
         master_config_t m_cfg{};
         m_cfg.id = m["id"].as<uint8_t>();
@@ -43,7 +45,6 @@ void mmns::MotorManager::load_configurations(const std::string& config_file)
         case CommunicationType::Ethercat: {
             m_cfg.master_idx = m["master_idx"].as<unsigned int>();
             masters_[m_cfg.id] = std::make_unique<EthercatMaster>(m_cfg);
-            m_idx++;
     
             for (uint8_t i = 0; i < m["number_of_slaves"].as<uint8_t>(); ++i) {
                 slave_config_t s_cfg{};
@@ -54,7 +55,7 @@ void mmns::MotorManager::load_configurations(const std::string& config_file)
                 s_cfg.vid = slaves[i]["vid"].as<uint32_t>();
                 s_cfg.pid = slaves[i]["pid"].as<uint32_t>();
                 
-                controllers_[s_cfg.driver_id] = std::make_unique<EthercatController>(s_cfg);
+                controllers_[s_idx] = std::make_unique<EthercatController>(s_cfg);
                 s_idx++;
             }
             break;
@@ -64,13 +65,13 @@ void mmns::MotorManager::load_configurations(const std::string& config_file)
         }
         }
     }
-    number_of_masters_ = m_idx;
-    number_of_drivers_ = s_idx;
 
     YAML::Node drivers = root["drivers"];
     if (!drivers || !drivers.IsSequence()) {
         throw std::runtime_error("Invalid drivers configurations.");
     }
+
+    drivers_.reserve(MAX_SLAVE_SIZE)
 
     for (const auto& d : drivers) {
         driver_config_t d_cfg{};
@@ -94,43 +95,46 @@ void mmns::MotorManager::load_configurations(const std::string& config_file)
             throw std::runtime_error("Unsupported type of driver: " + std::to_string(d_cfg.id));
         }
         }
-        drivers_[d_cfg.id]->load_parameters(d["param_file"].as<std::string>());
+        drivers_.at(d_cfg.id)->load_parameters(d["param_file"].as<std::string>());
     }
+
+    number_of_masters_ = m_idx;
+    number_of_drivers_ = d_idx;
 }
 
 void mmns::MotorManager::initialize_motor_manager()
 {    
     frequency_ = NSEC_PER_SEC / period_;
-    
-    for (uint8_t i = 0; i < number_of_masters_; ++i) {
-        masters_[i]->initialize();
+
+    for (auto & m_iter : masters_) {
+        m_iter.second->initialize();
     }
     
     for (uint8_t i = 0; i < number_of_drivers_; ++i) {
         uint8_t mid = controllers_[i]->master_id();
         uint8_t did = controllers_[i]->driver_id();
-        controllers_[i]->initialize(*masters_[mid], *drivers_[did]);
+        controllers_[i]->initialize(*masters_.at(mid), *drivers_.at(did));
     }
 }
 
 void mmns::MotorManager::start()
 {
-    for (uint8_t i = 0; i < number_of_masters_; ++i) {
-        masters_[i]->activate();
+    for (auto & m_iter : masters_) {
+        m_iter.second->activate();
     }
 }
 
 void mmns::MotorManager::stop()
 {
-    for (uint8_t i = 0; i < number_of_masters_; ++i) {
-        masters_[i]->deactivate();
+    for (auto & m_iter : masters_) {
+        m_iter.second->deactivate();
     }
 }
 
 bool mmns::MotorManager::update(bool is_interrupt, motor_state_t* states, const motor_state_t* cmds)
 {
-    for (uint8_t i = 0; i < number_of_masters_; ++i) {
-        masters_[i]->receive();
+    for (auto & m_iter : masters_) {
+        m_iter.second->receive();
     }
 
     if (is_interrupt) {
@@ -145,8 +149,8 @@ bool mmns::MotorManager::update(bool is_interrupt, motor_state_t* states, const 
         }
     }
 
-    for (uint8_t i = 0; i < number_of_masters_; ++i) {
-        masters_[i]->transmit();
+    for (auto & m_iter : masters_) {
+        m_iter.second->transmit();
     }
 
     return is_disable_;
@@ -156,38 +160,38 @@ void mmns::MotorManager::enable_motor_manager()
 {
     uint8_t result[MAX_DRIVER_SIZE] = {0};
     uint8_t sum = 0;
-    for (uint8_t i = 0; i < number_of_drivers_; ++i) {
+    for (uint8_t i = 0; i < number_of_slaves_; ++i) {
         if (!result[i]) {
             result[i] = controllers_[i]->servo_on();
         }
         sum += result[i];
     }
-    if (sum == number_of_drivers_) is_enable_ = true;
+    if (sum == number_of_slaves_) is_enable_ = true;
 }
 
 void mmns::MotorManager::disable_motor_manager()
 {
     uint8_t result[MAX_DRIVER_SIZE] = {0};
     uint8_t sum = 0;
-    for (uint8_t i = 0; i < number_of_drivers_; ++i) {
+    for (uint8_t i = 0; i < number_of_slaves_; ++i) {
         if (!result[i]) {
             result[i] = controllers_[i]->servo_off();
         }
         sum += result[i];
     }
-    if (sum == number_of_drivers_) is_disable_ = true;
+    if (sum == number_of_slaves_) is_disable_ = true;
 }
 
 void mmns::MotorManager::check_motor_state(const motor_state_t* states)
 {
-    for (uint8_t i = 0; i < number_of_drivers_; ++i) {
+    for (uint8_t i = 0; i < number_of_slaves_; ++i) {
         controllers_[i]->check(states[i]);
     }
 }
 
 void mmns::MotorManager::write_motor_state(const motor_state_t* cmds)
 {
-    for (uint8_t i = 0; i < number_of_drivers_; ++i) {
+    for (uint8_t i = 0; i < number_of_slaves_; ++i) {
         if (cmds[i].number_of_controls > 0) {
             controllers_[cmds[i].id]->write(cmds[i]);
         }
@@ -196,7 +200,7 @@ void mmns::MotorManager::write_motor_state(const motor_state_t* cmds)
 
 void mmns::MotorManager::read_motor_state(motor_state_t* states)
 {
-    for (uint8_t i = 0; i < number_of_drivers_; ++i) {
+    for (uint8_t i = 0; i < number_of_slaves_; ++i) {
         controllers_[i]->read(states[i]);
     }
 }
