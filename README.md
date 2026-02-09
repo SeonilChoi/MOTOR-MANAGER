@@ -52,6 +52,21 @@ Config: `config/example.yaml` (period, masters with type/slaves, drivers with ty
 - CANopen/Dynamixel will add their own (e.g. CAN socket, serial library).
 - CMake: `motor_manager_library` (shared) + `motor_manager_test`; link EtherCAT and yaml-cpp.
 
+**Build and install:**
+
+```bash
+mkdir -p build
+cd build
+cmake -S .. -B . -DCMAKE_BUILD_TYPE=Release   # use Debug for debug build
+sudo cmake --build . --target install
+```
+
+**Run the test executable** (from the `build` directory):
+
+```bash
+./motor_manager_test
+```
+
 ## Summary
 
 Motor Manager provides a single API to drive multiple motors over different buses. Today it supports **EtherCAT** with **Minas** drivers. The design already includes **CANopen** and **Dynamixel** in the type system; adding them means implementing the corresponding **MotorMaster** and **MotorController** (and for Dynamixel, a **MotorDriver**), then wiring them in `load_configurations` and CMake.
