@@ -4,17 +4,20 @@
 #include <yaml-cpp/yaml.h>
 
 #include "motor_manager/motor_manager.hpp"
+
 #include "motor_manager/master/ethercat_master.hpp"
+
 #include "motor_manager/controller/ethercat_controller.hpp"
+
 #include "motor_manager/driver/minas_driver.hpp"
 
-mmns::MotorManager::MotorManager(const std::string& config_file)
+micros::MotorManager::MotorManager(const std::string& config_file)
 {
     load_configurations(config_file);
     initialize_motor_manager();
 }
 
-void mmns::MotorManager::load_configurations(const std::string& config_file)
+void micros::MotorManager::load_configurations(const std::string& config_file)
 {
     YAML::Node root = YAML::LoadFile(config_file);
     if (!root) {
@@ -101,7 +104,7 @@ void mmns::MotorManager::load_configurations(const std::string& config_file)
     number_of_slaves_ = s_idx;
 }
 
-void mmns::MotorManager::initialize_motor_manager()
+void micros::MotorManager::initialize_motor_manager()
 {    
     frequency_ = NSEC_PER_SEC / period_;
 
@@ -116,21 +119,21 @@ void mmns::MotorManager::initialize_motor_manager()
     }
 }
 
-void mmns::MotorManager::start()
+void micros::MotorManager::start()
 {
     for (auto & m_iter : masters_) {
         m_iter.second->activate();
     }
 }
 
-void mmns::MotorManager::stop()
+void micros::MotorManager::stop()
 {
     for (auto & m_iter : masters_) {
         m_iter.second->deactivate();
     }
 }
 
-bool mmns::MotorManager::update(bool is_interrupt, motor_state_t* states, const motor_state_t* cmds)
+bool micros::MotorManager::update(bool is_interrupt, motor_state_t* states, const motor_state_t* cmds)
 {
     for (auto & m_iter : masters_) {
         m_iter.second->receive();
@@ -155,7 +158,7 @@ bool mmns::MotorManager::update(bool is_interrupt, motor_state_t* states, const 
     return is_disable_;
 }
 
-void mmns::MotorManager::enable_motor_manager()
+void micros::MotorManager::enable_motor_manager()
 {
     uint8_t result[MAX_DRIVER_SIZE] = {0};
     uint8_t sum = 0;
@@ -168,7 +171,7 @@ void mmns::MotorManager::enable_motor_manager()
     if (sum == number_of_slaves_) is_enable_ = true;
 }
 
-void mmns::MotorManager::disable_motor_manager()
+void micros::MotorManager::disable_motor_manager()
 {
     uint8_t result[MAX_DRIVER_SIZE] = {0};
     uint8_t sum = 0;
@@ -181,23 +184,23 @@ void mmns::MotorManager::disable_motor_manager()
     if (sum == number_of_slaves_) is_disable_ = true;
 }
 
-void mmns::MotorManager::check_motor_state(const motor_state_t* states)
+void micros::MotorManager::check_motor_state(const motor_state_t* states)
 {
     for (uint8_t i = 0; i < number_of_slaves_; ++i) {
         controllers_[i]->check(states[i]);
     }
 }
 
-void mmns::MotorManager::write_motor_state(const motor_state_t* cmds)
+void micros::MotorManager::write_motor_state(const motor_state_t* cmds)
 {
     for (uint8_t i = 0; i < number_of_slaves_; ++i) {
-        if (cmds[i].number_of_controls > 0) {
+        if (cmds[i].number_of_targets > 0) {
             controllers_[cmds[i].id]->write(cmds[i]);
         }
     }
 }
 
-void mmns::MotorManager::read_motor_state(motor_state_t* states)
+void micros::MotorManager::read_motor_state(motor_state_t* states)
 {
     for (uint8_t i = 0; i < number_of_slaves_; ++i) {
         controllers_[i]->read(states[i]);

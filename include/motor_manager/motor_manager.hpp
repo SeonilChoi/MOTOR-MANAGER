@@ -10,9 +10,11 @@
 #include "motor_manager/core/motor_driver.hpp"
 #include "motor_manager/core/motor_controller.hpp"
 
+#include "micros_common_type/micros_common_type.hpp"
+
 inline constexpr uint32_t NSEC_PER_SEC = 1e+9;
 
-namespace mmns {
+namespace micros {
 
 class MotorManager {
 public:
@@ -63,5 +65,5 @@ private:
     bool is_disable_{0};
 };
 
-} //namespace mmns
-#endif
+} //namespace micros
+#endif // MOTOR_MANAGER_MOTOR_MANAGER_HPP_

@@ -7,12 +7,11 @@
 #include <stdexcept>
 #include <type_traits>
 
-inline constexpr std::size_t MAX_DATA_SIZE = 4; // Maximum size of data array (32-bit).
+namespace micros {
 
-inline constexpr uint8_t MAX_INTERFACE_SIZE = 16; // Maximum number of command or state entries per driver.
+inline constexpr std::size_t MAX_DATA_SIZE  = 4;  // Maximum size of data array (32-bit).
 inline constexpr uint8_t MAX_ITEM_SIZE      = 32; // Maximum number of configuration entries per driver.
 inline constexpr uint8_t MAX_MASTER_SIZE    = 8;  // Maximum number of masters.
-inline constexpr uint8_t MAX_SLAVE_SIZE     = 16; // Maximum number of drivers.
 
 // Interface ID to identify each entries.
 inline constexpr uint8_t ID_CONTROLWORD      = 0;
@@ -24,8 +23,6 @@ inline constexpr uint8_t ID_ERRORCODE        = 5;
 inline constexpr uint8_t ID_CURRENT_POSITION = 6;
 inline constexpr uint8_t ID_CURRENT_VELOCITY = 7;
 inline constexpr uint8_t ID_CURRENT_TORQUE   = 8;
-
-namespace mmns {
 
 // Communication type of a master.
 enum class CommunicationType {
@@ -100,19 +97,6 @@ struct entry_table_t {
     uint8_t data[MAX_DATA_SIZE]{0}; // Value encoded as bytes.
 };
 
-struct motor_state_t {
-    uint8_t control_id[MAX_INTERFACE_SIZE]{0}; // Interface ID requried by control commands.
-    uint8_t number_of_controls{0};             // Number of valid control IDs in control_id[].
-
-    uint8_t id;             // Driver ID
-    uint16_t controlword{}; // Controlword
-    uint16_t statusword{};  // Statusword
-    uint16_t errorcode{};   // Error code
-    double position{};      // Current or Target Position
-    double velocity{};      // Current or Target Velocity
-    double torque{};        // Current or Target Torque
-};
-
 /**************************************************************************************************/
 
 inline CommunicationType to_communication_type(const std::string& comm_type) {
@@ -165,5 +149,5 @@ inline void fill_data(const T& value, std::array<uint8_t, MAX_DATA_SIZE>& data) 
     }
 }
 
-} // namespace mmns
+} // namespace micros
 #endif // #ifndef MOTOR_MANAGER_TYPES_HPP_
