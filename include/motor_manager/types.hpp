@@ -129,7 +129,7 @@ inline ValueType to_value_type(const std::string& type) {
 }
 
 template <typename T>
-inline T to_value(const std::array<uint8_t, MAX_DATA_SIZE>& data) {
+inline T to_value(const uint8_t* data) {
     // Decodes little-endian bytes into an integral value T.
     using U = std::make_unsigned_t<T>;
     U u = 0;
@@ -140,7 +140,7 @@ inline T to_value(const std::array<uint8_t, MAX_DATA_SIZE>& data) {
 }
 
 template <typename T>
-inline void fill_data(const T& value, std::array<uint8_t, MAX_DATA_SIZE>& data) {
+inline void fill_data(const T& value, uint8_t* data) {
     // Encodes an integral value T into little-endian bytes.
     using U = std::make_unsigned_t<T>;
     U u = static_cast<U>(value);

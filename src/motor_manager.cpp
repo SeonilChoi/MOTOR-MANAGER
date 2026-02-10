@@ -160,7 +160,7 @@ bool micros::MotorManager::update(bool is_interrupt, motor_state_t* states, cons
 
 void micros::MotorManager::enable_motor_manager()
 {
-    uint8_t result[MAX_DRIVER_SIZE] = {0};
+    uint8_t result[MAX_CONTROLLER_SIZE]{0};
     uint8_t sum = 0;
     for (uint8_t i = 0; i < number_of_slaves_; ++i) {
         if (!result[i]) {
@@ -173,7 +173,7 @@ void micros::MotorManager::enable_motor_manager()
 
 void micros::MotorManager::disable_motor_manager()
 {
-    uint8_t result[MAX_DRIVER_SIZE] = {0};
+    uint8_t result[MAX_CONTROLLER_SIZE]{0};
     uint8_t sum = 0;
     for (uint8_t i = 0; i < number_of_slaves_; ++i) {
         if (!result[i]) {
