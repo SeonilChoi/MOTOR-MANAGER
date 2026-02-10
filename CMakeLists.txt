@@ -41,3 +41,6 @@ install(TARGETS motor_manager_library
         ARCHIVE DESTINATION lib
         LIBRARY DESTINATION lib
         RUNTIME DESTINATION bin)
+        
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/ DESTINATION include)
+install(FILES motor_managerConfig.cmake DESTINATION share/motor_manager/cmake)
