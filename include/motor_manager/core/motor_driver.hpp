@@ -7,7 +7,7 @@
 
 #include "motor_manager/types.hpp"
 
-namespace mmns {
+namespace micros {
 
 class MotorDriver {
 public:
@@ -63,5 +63,5 @@ protected:
     const driver_config_t config_;
 };
 
-} //namespace mmns
-#endif
+} //namespace micros
+#endif // CORE_MOTOR_DRIVER_HPP_

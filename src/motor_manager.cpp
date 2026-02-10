@@ -74,7 +74,7 @@ void micros::MotorManager::load_configurations(const std::string& config_file)
         throw std::runtime_error("Invalid drivers configurations.");
     }
 
-    drivers_.reserve(MAX_SLAVE_SIZE)
+    drivers_.reserve(MAX_CONTROLLER_SIZE);
 
     for (const auto& d : drivers) {
         driver_config_t d_cfg{};

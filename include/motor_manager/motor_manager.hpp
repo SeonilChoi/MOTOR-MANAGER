@@ -10,8 +10,6 @@
 #include "motor_manager/core/motor_driver.hpp"
 #include "motor_manager/core/motor_controller.hpp"
 
-#include "micros_common_type/micros_common_type.hpp"
-
 inline constexpr uint32_t NSEC_PER_SEC = 1e+9;
 
 namespace micros {
@@ -50,7 +48,7 @@ private:
     
     std::unordered_map<uint8_t, std::unique_ptr<MotorDriver>> drivers_;
     
-    std::unique_ptr<MotorController> controllers_[MAX_SLAVE_SIZE];
+    std::unique_ptr<MotorController> controllers_[MAX_CONTROLLER_SIZE];
 
     uint8_t number_of_slaves_{0};
     

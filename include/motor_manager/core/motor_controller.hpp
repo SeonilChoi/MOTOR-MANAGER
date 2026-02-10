@@ -7,7 +7,7 @@
 #include "motor_manager/core/motor_master.hpp"
 #include "motor_manager/core/motor_driver.hpp"
 
-namespace mmns {
+namespace micros {
 
 class MotorController {
 public:
@@ -44,5 +44,5 @@ protected:
     const uint8_t driver_id_;
 };
 
-} //namespace mmns
-#endif
+} //namespace micros
+#endif // CORE_MOTOR_CONTROLLER_HPP_

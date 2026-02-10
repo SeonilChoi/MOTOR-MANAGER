@@ -7,6 +7,8 @@
 #include <stdexcept>
 #include <type_traits>
 
+#include "micros_common_type/micros_common_type.hpp"
+
 namespace micros {
 
 inline constexpr std::size_t MAX_DATA_SIZE  = 4;  // Maximum size of data array (32-bit).

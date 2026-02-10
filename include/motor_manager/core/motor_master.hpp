@@ -5,7 +5,7 @@
 
 #include "motor_manager/types.hpp"
 
-namespace mmns {
+namespace micros {
 
 class MotorMaster {
 public:
@@ -36,5 +36,5 @@ protected:
     const uint8_t number_of_slaves_;
 };
 
-} //namespace mmns
-#endif
+} //namespace micros
+#endif // CORE_MOTOR_MASTER_HPP_
