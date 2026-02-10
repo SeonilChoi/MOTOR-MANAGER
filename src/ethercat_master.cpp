@@ -3,7 +3,7 @@
 
 #include "motor_manager/master/ethercat_master.hpp"
 
-void mmns::EthercatMaster::initialize()
+void micros::EthercatMaster::initialize()
 {
     master_ = ecrt_request_master(master_idx_);
     if (master_ == nullptr) {
@@ -18,7 +18,7 @@ void mmns::EthercatMaster::initialize()
     printf("[EthercatMaster::initialize][master id: %u] Succeed initialization.\n", id_);
 }
 
-void mmns::EthercatMaster::activate()
+void micros::EthercatMaster::activate()
 {
     if (ecrt_master_activate(master_)) {
         throw std::runtime_error("Failed to activate master.");
@@ -31,7 +31,7 @@ void mmns::EthercatMaster::activate()
     printf("[EthercatMaster::activate][master id: %u] Active.\n", id_);
 }
 
-void mmns::EthercatMaster::deactivate()
+void micros::EthercatMaster::deactivate()
 {
     if (ecrt_master_deactivate(master_)) {
         throw std::runtime_error("Failed to deactivate master.");
@@ -40,13 +40,13 @@ void mmns::EthercatMaster::deactivate()
     printf("[EthercatMaster::deactivate][master id: %u] Deactive.\n", id_);
 }
 
-void mmns::EthercatMaster::check()
+void micros::EthercatMaster::check()
 {
     check_master_state();
     check_domain_state();
 }
 
-void mmns::EthercatMaster::transmit()
+void micros::EthercatMaster::transmit()
 {
     if (ecrt_domain_queue(domain_)) {
         throw std::runtime_error("Failed to queue datagrams.");
@@ -56,7 +56,7 @@ void mmns::EthercatMaster::transmit()
     }
 }
 
-void mmns::EthercatMaster::receive()
+void micros::EthercatMaster::receive()
 {
     if (ecrt_master_receive(master_)) {
         throw std::runtime_error("Failed to receive frames.");
@@ -66,7 +66,7 @@ void mmns::EthercatMaster::receive()
     }
 }
 
-void mmns::EthercatMaster::check_master_state()
+void micros::EthercatMaster::check_master_state()
 {
     ec_master_state_t ms;
     ecrt_master_state(master_, &ms);
@@ -85,7 +85,7 @@ void mmns::EthercatMaster::check_master_state()
     master_state_ = ms;
 }
 
-void mmns::EthercatMaster::check_domain_state()
+void micros::EthercatMaster::check_domain_state()
 {
     ec_domain_state_t ds;
     ecrt_domain_state(domain_, &ds);

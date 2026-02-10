@@ -32,7 +32,7 @@ inline constexpr uint8_t ID_MAX_DECELERATION     = 58;
 inline constexpr uint8_t ID_RXPDO                = 98;
 inline constexpr uint8_t ID_TXPDO                = 99;
 
-namespace mmns {
+namespace micros {
 
 class MinasDriver : public MotorDriver {
 public:
@@ -76,5 +76,5 @@ private:
     DriverState driver_state_{DriverState::SwitchOnDisabled};
 };
 
-} //namespace mmns
-#endif
+} //namespace micros
+#endif // DRIVER_MINAS_DRIVER_HPP_

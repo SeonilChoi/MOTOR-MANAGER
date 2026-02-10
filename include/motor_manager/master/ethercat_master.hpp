@@ -7,7 +7,7 @@
 
 #include "motor_manager/core/motor_master.hpp"
 
-namespace mmns {
+namespace micros {
 
 class EthercatMaster : public MotorMaster {
 public:
@@ -54,5 +54,5 @@ private:
     const unsigned int master_idx_;
 };
 
-} //namespace mmns
-#endif
+} //namespace micros
+#endif // MASTER_ETHERCAT_MASTER_HPP_

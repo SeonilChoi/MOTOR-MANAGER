@@ -4,7 +4,7 @@
 
 #include "motor_manager/controller/ethercat_controller.hpp"
 
-void mmns::EthercatController::initialize(MotorMaster& master, MotorDriver& driver)
+void micros::EthercatController::initialize(MotorMaster& master, MotorDriver& driver)
 {
     auto* m = dynamic_cast<EthercatMaster*>(&master);
     if (!m) {
@@ -23,13 +23,13 @@ void mmns::EthercatController::initialize(MotorMaster& master, MotorDriver& driv
     printf("[EthercatController::initialize][master id: %u][driver id: %u] Initialized controller\n", master_id_, driver_id_);
 }
 
-void mmns::EthercatController::configure()
+void micros::EthercatController::configure()
 {
     add_slave_config_pdos();
     add_slave_config_sdos();
 }
 
-bool mmns::EthercatController::servo_on()
+bool micros::EthercatController::servo_on()
 {
     uint8_t* domain_pd = master_->domain_pd();
     uint16_t sw = EC_READ_U16(domain_pd + offset_[ID_STATUSWORD]);
@@ -46,7 +46,7 @@ bool mmns::EthercatController::servo_on()
     return true;
 }
 
-bool mmns::EthercatController::servo_off()
+bool micros::EthercatController::servo_off()
 {
     uint8_t* domain_pd = master_->domain_pd();
     uint16_t sw = EC_READ_U16(domain_pd + offset_[ID_STATUSWORD]);
@@ -63,7 +63,7 @@ bool mmns::EthercatController::servo_off()
     return true;
 }
 
-void mmns::EthercatController::check(const motor_state_t& state)
+void micros::EthercatController::check(const motor_state_t& state)
 {
     uint8_t* domain_pd = master_->domain_pd();
     
@@ -77,25 +77,25 @@ void mmns::EthercatController::check(const motor_state_t& state)
     }
 }
 
-void mmns::EthercatController::write(const motor_state_t& cmd)
+void micros::EthercatController::write(const motor_state_t& cmd)
 {
     entry_table_t entries[MAX_INTERFACE_SIZE] = {0};
-    for (uint8_t i = 0; i < cmd.number_of_controls; ++i) {
-        if (cmd.control_id[i] == ID_CONTROLWORD) {
+    for (uint8_t i = 0; i < cmd.number_of_targets; ++i) {
+        if (cmd.target_id[i] == ID_CONTROLWORD) {
             entries[i].id = ID_CONTROLWORD;
             entries[i].type = ValueType::U16;
             fill_data<uint16_t>(cmd.controlword, entries[i].data);
-        } else if (cmd.control_id[i] == ID_TARGET_POSITION) {
+        } else if (cmd.target_id[i] == ID_TARGET_POSITION) {
             int32_t value = driver_->position(cmd.position);
             entries[i].id = ID_TARGET_POSITION;
             entries[i].type = ValueType::S32;
             fill_data<int32_t>(value, entries[i].data);
-        } else if (cmd.control_id[i] == ID_TARGET_VELOCITY) {
+        } else if (cmd.target_id[i] == ID_TARGET_VELOCITY) {
             int32_t value = driver_->velocity(cmd.velocity);
             entries[i].id = ID_TARGET_VELOCITY;
             entries[i].type = ValueType::S32;
             fill_data<int32_t>(value, entries[i].data);
-        } else if (cmd.control_id[i] == ID_TARGET_TORQUE) {
+        } else if (cmd.target_id[i] == ID_TARGET_TORQUE) {
             int16_t value = driver_->torque(cmd.torque);
             entries[i].id = ID_TARGET_TORQUE;
             entries[i].type = ValueType::S16;
@@ -104,10 +104,10 @@ void mmns::EthercatController::write(const motor_state_t& cmd)
             throw std::runtime_error("Unsupported interface ID.");
         }
     }
-    write_data(entries, cmd.number_of_controls);
+    write_data(entries, cmd.number_of_targets);
 }
 
-void mmns::EthercatController::read(motor_state_t& state)
+void micros::EthercatController::read(motor_state_t& state)
 {
     read_data(tx_pdos_);
     for (uint8_t i = 0; i < driver_->number_of_tx_pdos(); ++i) {
@@ -131,7 +131,7 @@ void mmns::EthercatController::read(motor_state_t& state)
     state.id = driver_id_;
 }
 
-void mmns::EthercatController::write_data(const entry_table_t* pdos, uint8_t size)
+void micros::EthercatController::write_data(const entry_table_t* pdos, uint8_t size)
 {
     uint8_t* domain_pd = master_->domain_pd();
     for (uint8_t i = 0; i < size; ++i) {
@@ -167,7 +167,7 @@ void mmns::EthercatController::write_data(const entry_table_t* pdos, uint8_t siz
     }
 }
 
-void mmns::EthercatController::read_data(entry_table_t* pdos)
+void micros::EthercatController::read_data(entry_table_t* pdos)
 {
     uint8_t* domain_pd = master_->domain_pd();
     for (uint8_t i = 0; i < driver_->number_of_tx_pdos(); ++i) {
@@ -197,7 +197,7 @@ void mmns::EthercatController::read_data(entry_table_t* pdos)
     }
 }
 
-void mmns::EthercatController::add_slave_config_sdos()
+void micros::EthercatController::add_slave_config_sdos()
 {
     const entry_table_t* items = driver_->items();
     for (uint8_t i = 0; i < driver_->number_of_items(); ++i) {
@@ -233,7 +233,7 @@ void mmns::EthercatController::add_slave_config_sdos()
     }
 }
 
-void mmns::EthercatController::add_slave_config_pdos()
+void micros::EthercatController::add_slave_config_pdos()
 {
     const entry_table_t* entries = driver_->entries();
 
@@ -327,7 +327,7 @@ void mmns::EthercatController::add_slave_config_pdos()
     }
 }
 
-void mmns::EthercatController::check_slave_config_state()
+void micros::EthercatController::check_slave_config_state()
 {
     ec_slave_config_state_t s;
     ecrt_slave_config_state(slave_config_, &s);

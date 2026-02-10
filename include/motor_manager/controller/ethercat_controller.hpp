@@ -6,7 +6,7 @@
 #include "motor_manager/core/motor_controller.hpp"
 #include "motor_manager/master/ethercat_master.hpp"
 
-namespace mmns {
+namespace micros {
 
 class EthercatController : public MotorController {
 public:
@@ -64,5 +64,5 @@ private:
     const uint32_t pid_; 
 };
 
-} //namespace mmns
-#endif
+} //namespace micros
+#endif // CONTROLLER_ETHERCAT_CONTROLLER_HPP_

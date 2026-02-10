@@ -7,7 +7,7 @@
 
 #include "motor_manager/driver/minas_driver.hpp"
 
-void mmns::MinasDriver::load_parameters(const std::string& param_file)
+void micros::MinasDriver::load_parameters(const std::string& param_file)
 {
     YAML::Node root = YAML::LoadFile(param_file);
     if (!root) {
@@ -116,7 +116,7 @@ void mmns::MinasDriver::load_parameters(const std::string& param_file)
     printf("[MinasDriver::load_parameters][driver id: %u] Parameter load succeed.\n", config_.id);
 }
 
-bool mmns::MinasDriver::is_enabled(const uint8_t* data, uint8_t* out)
+bool micros::MinasDriver::is_enabled(const uint8_t* data, uint8_t* out)
 {
     uint16_t sw = to_value<uint16_t>(data);
     uint16_t cw = CW_ENABLE_OPERAITON;
@@ -157,7 +157,7 @@ bool mmns::MinasDriver::is_enabled(const uint8_t* data, uint8_t* out)
     return false;
 }
 
-bool mmns::MinasDriver::is_disabled(const uint8_t* data, uint8_t* out)
+bool micros::MinasDriver::is_disabled(const uint8_t* data, uint8_t* out)
 {
     uint16_t sw = to_value<uint16_t>(data);
     uint16_t cw = CW_ENABLE_OPERAITON;
@@ -195,7 +195,7 @@ bool mmns::MinasDriver::is_disabled(const uint8_t* data, uint8_t* out)
     return false;
 }
 
-bool mmns::MinasDriver::is_received(const uint8_t* data, uint8_t* out)
+bool micros::MinasDriver::is_received(const uint8_t* data, uint8_t* out)
 {
     uint16_t sw = to_value<uint16_t>(data);
     if (is_setpoint_acknowledge(sw)) {
@@ -205,32 +205,32 @@ bool mmns::MinasDriver::is_received(const uint8_t* data, uint8_t* out)
     return false;
 }
 
-double mmns::MinasDriver::position(const int32_t value)
+double micros::MinasDriver::position(const int32_t value)
 {
     return static_cast<double>(value) / static_cast<double>(config_.pulse_per_revolution) * (2 * M_PI);
 } 
 
-double mmns::MinasDriver::velocity(const int32_t value)
+double micros::MinasDriver::velocity(const int32_t value)
 {
     return static_cast<double>(value) / static_cast<double>(config_.pulse_per_revolution) * (2 * M_PI);
 } 
 
-double mmns::MinasDriver::torque(const int16_t value)
+double micros::MinasDriver::torque(const int16_t value)
 {
     return config_.rated_torque * 0.01 * static_cast<double>(value) * config_.unit_torque;
 }
 
-int32_t mmns::MinasDriver::position(const double value)
+int32_t micros::MinasDriver::position(const double value)
 {
     return static_cast<int32_t>(value / (2 * M_PI) * config_.pulse_per_revolution); 
 } 
 
-int32_t mmns::MinasDriver::velocity(const double value)
+int32_t micros::MinasDriver::velocity(const double value)
 {
     return static_cast<int32_t>(value / (2 * M_PI) * config_.pulse_per_revolution); 
 } 
 
-int16_t mmns::MinasDriver::torque(const double value)
+int16_t micros::MinasDriver::torque(const double value)
 {
     return static_cast<int16_t>(value / config_.rated_torque * 100 / config_.unit_torque);
 }
