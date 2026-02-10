@@ -110,8 +110,8 @@ void mmns::MinasDriver::load_parameters(const std::string& param_file)
         e_idx++;
     }
     number_of_entries_ = e_idx;
-    number_of_rx_pdos_ = c_idx;
-    number_of_tx_pdos_ = s_idx;
+    number_of_rx_pdos_ = c_idx; // motor receive command from motor manager
+    number_of_tx_pdos_ = s_idx; // motor transmit state to motor manager
 
     printf("[MinasDriver::load_parameters][driver id: %u] Parameter load succeed.\n", config_.id);
 }
