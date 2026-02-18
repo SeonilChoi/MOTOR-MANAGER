@@ -17,9 +17,9 @@ public:
 
     virtual void load_parameters(const std::string& param_file) = 0; 
     
-    virtual bool is_enabled(const uint8_t* data, uint8_t* out) = 0;
+    virtual bool is_enabled(const uint8_t* data, DriverState& driver_state, uint8_t* out) = 0;
     
-    virtual bool is_disabled(const uint8_t* data, uint8_t* out) = 0;
+    virtual bool is_disabled(const uint8_t* data, DriverState& driver_state, uint8_t* out) = 0;
     
     virtual bool is_received(const uint8_t* data, uint8_t* out) = 0;
 

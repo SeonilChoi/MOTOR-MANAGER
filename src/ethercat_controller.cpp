@@ -38,7 +38,7 @@ bool micros::EthercatController::servo_on()
     fill_data<uint16_t>(sw, sw_data);
     
     uint8_t cw_data[2];
-    if (!(driver_->is_enabled(sw_data, cw_data))) {
+    if (!(driver_->is_enabled(sw_data, driver_state_, cw_data))) {
         uint16_t cw = to_value<uint16_t>(cw_data);
         EC_WRITE_U16(domain_pd + offset_[ID_CONTROLWORD], cw);
         return false;
@@ -55,7 +55,7 @@ bool micros::EthercatController::servo_off()
     fill_data<uint16_t>(sw, sw_data);
 
     uint8_t cw_data[2] = {0};
-    if (!(driver_->is_disabled(sw_data, cw_data))) {
+    if (!(driver_->is_disabled(sw_data, driver_state_, cw_data))) {
         uint16_t cw = to_value<uint16_t>(cw_data);
         EC_WRITE_U16(domain_pd + offset_[ID_CONTROLWORD], cw);
         return false;

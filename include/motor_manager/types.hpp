@@ -67,12 +67,13 @@ struct master_config_t {
 };
 
 struct slave_config_t {
-    uint8_t master_id;   // ID of the master that owns this slave.
-    uint8_t driver_id;   // ID of the driver associated with this slave.
-    uint16_t alias{};    // EtherCAT slave alias.
-    uint16_t position{}; // EtherCAT slave position, used with alias.
-    uint32_t vid{};      // Vendor ID
-    uint32_t pid{};      // Product ID
+    uint8_t controller_idx; // Index of the controller that owns this slave.
+    uint8_t master_id;      // ID of the master that owns this slave.
+    uint8_t driver_id;      // ID of the driver associated with this slave.
+    uint16_t alias{};       // EtherCAT slave alias.
+    uint16_t position{};    // EtherCAT slave position, used with alias.
+    uint32_t vid{};         // Vendor ID
+    uint32_t pid{};         // Product ID
 };
 
 struct driver_config_t {

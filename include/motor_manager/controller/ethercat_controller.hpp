@@ -44,8 +44,6 @@ private:
     void check_slave_config_state();
 
     EthercatMaster* master_{nullptr};
-    
-    MotorDriver* driver_{nullptr};
 
     ec_slave_config_t* slave_config_{nullptr};
     

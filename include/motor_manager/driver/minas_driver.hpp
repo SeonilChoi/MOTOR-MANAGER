@@ -42,9 +42,9 @@ public:
 
     void load_parameters(const std::string& param_file) override;
 
-    bool is_enabled(const uint8_t* data, uint8_t* out) override; 
+    bool is_enabled(const uint8_t* data, DriverState& driver_state, uint8_t* out) override; 
     
-    bool is_disabled(const uint8_t* data, uint8_t* out) override;
+    bool is_disabled(const uint8_t* data, DriverState& driver_state, uint8_t* out) override;
     
     bool is_received(const uint8_t* data, uint8_t* out) override;
 
@@ -72,8 +72,6 @@ private:
     bool is_fault(uint16_t sw) { return (sw & SW_FAULT); }
     
     bool is_setpoint_acknowledge(uint16_t sw) { return (sw & 0x1000) == SW_SETPOINT_ACKNOWLEDGE; }
-
-    DriverState driver_state_{DriverState::SwitchOnDisabled};
 };
 
 } //namespace micros

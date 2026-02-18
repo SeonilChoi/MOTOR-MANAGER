@@ -116,33 +116,33 @@ void micros::MinasDriver::load_parameters(const std::string& param_file)
     printf("[MinasDriver::load_parameters][driver id: %u] Parameter load succeed.\n", config_.id);
 }
 
-bool micros::MinasDriver::is_enabled(const uint8_t* data, uint8_t* out)
+bool micros::MinasDriver::is_enabled(const uint8_t* data, DriverState& driver_state, uint8_t* out)
 {
     uint16_t sw = to_value<uint16_t>(data);
     uint16_t cw = CW_ENABLE_OPERAITON;
     
     if (is_fault(sw)) {
         cw = CW_FAULT_RESET;
-        driver_state_ = DriverState::SwitchOnDisabled;
+        driver_state = DriverState::SwitchOnDisabled;
     }
 
-    switch (driver_state_) {
+    switch (driver_state) {
     case DriverState::SwitchOnDisabled: {
         cw = CW_SHUTDOWN;
         if (is_ready_to_switch_on(sw)) {
-            driver_state_ = DriverState::ReadyToSwitchOn;
+            driver_state = DriverState::ReadyToSwitchOn;
         }
         break;
     } case DriverState::ReadyToSwitchOn: {
         cw = CW_SWITCH_ON;
         if (is_switched_on(sw)) {
-            driver_state_ = DriverState::SwitchedOn;
+            driver_state = DriverState::SwitchedOn;
         }
         break;
     } case DriverState::SwitchedOn: {
         cw = CW_ENABLE_OPERAITON;
         if (is_operation_enabled(sw)) {
-            driver_state_ = DriverState::OperationEnabled;
+            driver_state = DriverState::OperationEnabled;
         }
         break;
     } case DriverState::OperationEnabled: {
@@ -157,12 +157,12 @@ bool micros::MinasDriver::is_enabled(const uint8_t* data, uint8_t* out)
     return false;
 }
 
-bool micros::MinasDriver::is_disabled(const uint8_t* data, uint8_t* out)
+bool micros::MinasDriver::is_disabled(const uint8_t* data, DriverState& driver_state, uint8_t* out)
 {
     uint16_t sw = to_value<uint16_t>(data);
     uint16_t cw = CW_ENABLE_OPERAITON;
     
-    switch (driver_state_) {
+    switch (driver_state) {
     case DriverState::SwitchOnDisabled: {
         printf("[MinasDriver::is_disabled][driver id: %u] Operation disabled.\n", config_.id);
         return true;
@@ -170,21 +170,21 @@ bool micros::MinasDriver::is_disabled(const uint8_t* data, uint8_t* out)
     case DriverState::ReadyToSwitchOn: {
         cw = CW_DISABLE_VOLTAGE;
         if (is_switch_on_disabled(sw)) {
-            driver_state_ = DriverState::SwitchOnDisabled;
+            driver_state = DriverState::SwitchOnDisabled;
         }
         break;
     }
     case DriverState::SwitchedOn: {
         cw = CW_SHUTDOWN;
         if (is_ready_to_switch_on(sw)) {
-            driver_state_ = DriverState::ReadyToSwitchOn;
+            driver_state = DriverState::ReadyToSwitchOn;
         }
         break;
     }
     case DriverState::OperationEnabled: {
         cw = CW_DISABLE_OPERATION;
         if (is_switched_on(sw)) {
-            driver_state_ = DriverState::SwitchedOn;
+            driver_state = DriverState::SwitchedOn;
         }
         break;
     }

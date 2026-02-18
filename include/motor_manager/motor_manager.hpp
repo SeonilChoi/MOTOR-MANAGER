@@ -27,7 +27,7 @@ public:
 
     uint32_t period() const { return period_; }
     
-    uint8_t number_of_slaves() const { return number_of_slaves_; } 
+    uint8_t number_of_controllers() const { return number_of_controllers_; } 
 
 private:
     void load_configurations(const std::string& config_file);
@@ -50,7 +50,7 @@ private:
     
     std::unique_ptr<MotorController> controllers_[MAX_CONTROLLER_SIZE];
 
-    uint8_t number_of_slaves_{0};
+    uint8_t number_of_controllers_{0};
     
     uint32_t period_{0};
     

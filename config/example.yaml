@@ -5,13 +5,15 @@ masters:
     number_of_slaves: 2
     master_idx: 0
     slaves:
-      - driver_id: 0
+      - controller_idx: 0
+        driver_id: 0
         alias: 1
         position: 0
         vid: 0x0000066F
         pid: 0x60380004
         
-      - driver_id: 1
+      - controller_idx: 1
+        driver_id: 0
         alias: 1
         position: 1
         vid: 0x0000066F
@@ -31,19 +33,4 @@ drivers:
     profile_acceleration: 6.28
     profile_deceleration: 6.28
     type: minas
-    param_file: ../param/minas_a6.yaml
-    
-  - id: 1
-    pulse_per_revolution: 8388608
-    rated_torque: 0.16
-    unit_torque: 0.1
-    lower: -3.14
-    upper:  3.14
-    speed:  2000
-    acceleration: 10.0
-    deceleration: 10.0
-    profile_velocity: 3.14
-    profile_acceleration: 6.28
-    profile_deceleration: 6.28
-    type: minas
-    param_file: ../param/minas_a6.yaml
+    param_file: C:\Users\최선일\Documents\MICROS\src\manager\motor_manager\param\minas_a6.yaml

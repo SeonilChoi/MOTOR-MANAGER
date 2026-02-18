@@ -51,6 +51,7 @@ void micros::MotorManager::load_configurations(const std::string& config_file)
     
             for (uint8_t i = 0; i < m["number_of_slaves"].as<uint8_t>(); ++i) {
                 slave_config_t s_cfg{};
+                s_cfg.controller_idx = slaves[i]["controller_idx"].as<uint8_t>();
                 s_cfg.master_id = m_cfg.id;
                 s_cfg.driver_id = slaves[i]["driver_id"].as<uint8_t>();
                 s_cfg.alias = slaves[i]["alias"].as<uint16_t>();
@@ -58,7 +59,7 @@ void micros::MotorManager::load_configurations(const std::string& config_file)
                 s_cfg.vid = slaves[i]["vid"].as<uint32_t>();
                 s_cfg.pid = slaves[i]["pid"].as<uint32_t>();
                 
-                controllers_[s_idx] = std::make_unique<EthercatController>(s_cfg);
+                controllers_[s_cfg.controller_idx] = std::make_unique<EthercatController>(s_cfg);
                 s_idx++;
             }
             break;
@@ -68,6 +69,8 @@ void micros::MotorManager::load_configurations(const std::string& config_file)
         }
         }
     }
+
+    number_of_controllers_ = s_idx;
 
     YAML::Node drivers = root["drivers"];
     if (!drivers || !drivers.IsSequence()) {
@@ -100,8 +103,6 @@ void micros::MotorManager::load_configurations(const std::string& config_file)
         }
         drivers_.at(d_cfg.id)->load_parameters(d["param_file"].as<std::string>());
     }
-
-    number_of_slaves_ = s_idx;
 }
 
 void micros::MotorManager::initialize_motor_manager()
@@ -112,7 +113,7 @@ void micros::MotorManager::initialize_motor_manager()
         m_iter.second->initialize();
     }
     
-    for (uint8_t i = 0; i < number_of_slaves_; ++i) {
+    for (uint8_t i = 0; i < number_of_controllers_; ++i) {
         uint8_t mid = controllers_[i]->master_id();
         uint8_t did = controllers_[i]->driver_id();
         controllers_[i]->initialize(*masters_.at(mid), *drivers_.at(did));
@@ -162,47 +163,47 @@ void micros::MotorManager::enable_motor_manager()
 {
     uint8_t result[MAX_CONTROLLER_SIZE]{0};
     uint8_t sum = 0;
-    for (uint8_t i = 0; i < number_of_slaves_; ++i) {
+    for (uint8_t i = 0; i < number_of_controllers_; ++i) {
         if (!result[i]) {
             result[i] = controllers_[i]->servo_on();
         }
         sum += result[i];
     }
-    if (sum == number_of_slaves_) is_enable_ = true;
+    if (sum == number_of_controllers_) is_enable_ = true;
 }
 
 void micros::MotorManager::disable_motor_manager()
 {
     uint8_t result[MAX_CONTROLLER_SIZE]{0};
     uint8_t sum = 0;
-    for (uint8_t i = 0; i < number_of_slaves_; ++i) {
+    for (uint8_t i = 0; i < number_of_controllers_; ++i) {
         if (!result[i]) {
             result[i] = controllers_[i]->servo_off();
         }
         sum += result[i];
     }
-    if (sum == number_of_slaves_) is_disable_ = true;
+    if (sum == number_of_controllers_) is_disable_ = true;
 }
 
 void micros::MotorManager::check_motor_state(const motor_state_t* states)
 {
-    for (uint8_t i = 0; i < number_of_slaves_; ++i) {
+    for (uint8_t i = 0; i < number_of_controllers_; ++i) {
         controllers_[i]->check(states[i]);
     }
 }
 
 void micros::MotorManager::write_motor_state(const motor_state_t* cmds)
 {
-    for (uint8_t i = 0; i < number_of_slaves_; ++i) {
+    for (uint8_t i = 0; i < number_of_controllers_; ++i) {
         if (cmds[i].number_of_targets > 0) {
-            controllers_[cmds[i].id]->write(cmds[i]);
+            controllers_[cmds[i].controller_idx]->write(cmds[i]); // Same work as controllers_[i]->write(cmds[i]);
         }
     }
 }
 
 void micros::MotorManager::read_motor_state(motor_state_t* states)
 {
-    for (uint8_t i = 0; i < number_of_slaves_; ++i) {
+    for (uint8_t i = 0; i < number_of_controllers_; ++i) {
         controllers_[i]->read(states[i]);
     }
 }

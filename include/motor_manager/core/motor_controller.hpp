@@ -12,8 +12,9 @@ namespace micros {
 class MotorController {
 public:
     explicit MotorController(const slave_config_t& config)
-    : master_id_(config.master_id),
-      driver_id_(config.driver_id) {}
+    : idx_(config.controller_idx)
+    , master_id_(config.master_id)
+    , driver_id_(config.driver_id) {}
     virtual ~MotorController() = default;
 
     virtual void initialize(MotorMaster& master, MotorDriver& driver) = 0;
@@ -38,6 +39,12 @@ protected:
     virtual void write_data(const entry_table_t* pdos, uint8_t size) = 0;
     
     virtual void read_data(entry_table_t* pdos) = 0;
+
+    MotorDriver* driver_{nullptr};
+
+    DriverState driver_state_{DriverState::SwitchOnDisabled};
+
+    const uint8_t idx_;
 
     const uint8_t master_id_;
     
