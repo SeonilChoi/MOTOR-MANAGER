@@ -128,7 +128,7 @@ void micros::EthercatController::read(motor_state_t& state)
             throw std::runtime_error("Unsupported interface ID.");
         }
     }
-    state.id = driver_id_;
+    state.controller_idx = idx_;
 }
 
 void micros::EthercatController::write_data(const entry_table_t* pdos, uint8_t size)
