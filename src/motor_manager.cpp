@@ -109,7 +109,7 @@ void micros::MotorManager::initialize_motor_manager()
 {    
     frequency_ = NSEC_PER_SEC / period_;
 
-    for (auto & m_iter : masters_) {
+    for (auto& m_iter : masters_) {
         m_iter.second->initialize();
     }
     
@@ -122,21 +122,21 @@ void micros::MotorManager::initialize_motor_manager()
 
 void micros::MotorManager::start()
 {
-    for (auto & m_iter : masters_) {
+    for (auto& m_iter : masters_) {
         m_iter.second->activate();
     }
 }
 
 void micros::MotorManager::stop()
 {
-    for (auto & m_iter : masters_) {
+    for (auto& m_iter : masters_) {
         m_iter.second->deactivate();
     }
 }
 
-bool micros::MotorManager::update(bool is_interrupt, motor_state_t* states, const motor_state_t* cmds)
+bool micros::MotorManager::update(bool is_interrupt, motor_state_t* states, const motor_state_t* cmds, const uint8_t cmd_size)
 {
-    for (auto & m_iter : masters_) {
+    for (auto& m_iter : masters_) {
         m_iter.second->receive();
     }
 
@@ -148,11 +148,11 @@ bool micros::MotorManager::update(bool is_interrupt, motor_state_t* states, cons
         } else {
             read_motor_state(states);
             check_motor_state(states);
-            write_motor_state(cmds);
+            write_motor_state(cmds, cmd_size);
         }
     }
 
-    for (auto & m_iter : masters_) {
+    for (auto& m_iter : masters_) {
         m_iter.second->transmit();
     }
 
@@ -192,12 +192,10 @@ void micros::MotorManager::check_motor_state(const motor_state_t* states)
     }
 }
 
-void micros::MotorManager::write_motor_state(const motor_state_t* cmds)
+void micros::MotorManager::write_motor_state(const motor_state_t* cmds, const uint8_t cmd_size)
 {
-    for (uint8_t i = 0; i < number_of_controllers_; ++i) {
-        if (cmds[i].number_of_targets > 0) {
-            controllers_[cmds[i].controller_idx]->write(cmds[i]); // Same work as controllers_[i]->write(cmds[i]);
-        }
+    for (uint8_t i = 0; i < cmd_size; ++i) {
+        controllers_[cmds[i].controller_idx]->write(cmds[i]);
     }
 }
 

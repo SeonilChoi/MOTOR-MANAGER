@@ -23,7 +23,7 @@ public:
     
     void stop();
     
-    bool update(bool is_interrupt, motor_state_t* states, const motor_state_t* cmds);
+    bool update(bool is_interrupt, motor_state_t* states, const motor_state_t* cmds, const uint8_t cmd_size);
 
     uint32_t period() const { return period_; }
     
@@ -40,7 +40,7 @@ private:
 
     void check_motor_state(const motor_state_t* states);
     
-    void write_motor_state(const motor_state_t* cmds);
+    void write_motor_state(const motor_state_t* cmds, const uint8_t cmd_size);
     
     void read_motor_state(motor_state_t* states);
 
