@@ -1,4 +1,4 @@
-# motor_manager
+# Motor Manager
 
 ## Overview
 
@@ -7,7 +7,7 @@ EtherCAT motor stack as one `ament_cmake` package: abstract interfaces, EtherCAT
 ## Repository layout
 
 ```text
-lib/motor_manager/
+motor_manager/
 ├── CMakeLists.txt
 ├── package.xml
 ├── README.md
