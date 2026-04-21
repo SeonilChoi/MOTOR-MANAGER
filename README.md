@@ -39,11 +39,3 @@ motor_manager/
     ├── include/motor_manager/
     └── src/
 ```
-
-## Package READMEs
-
-- [core/motor_interface](core/motor_interface/README.md)
-- [communications/ethercat](communications/ethercat/README.md)
-- [hardware/minas](hardware/minas/README.md)
-- [hardware/zeroerr](hardware/zeroerr/README.md)
-- [motor_manager (library)](motor_manager/README.md)
