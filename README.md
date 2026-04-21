@@ -4,6 +4,14 @@
 
 EtherCAT motor stack as one `ament_cmake` package: abstract interfaces, EtherCAT transport, vendor drivers, and a YAML-driven `MotorManager` over `motor_frame_t` (`common_motor_interface`).
 
+## Clone
+
+```bash
+mkdir motor_manager
+git clone https://github.com/SeonilChoi/MOTOR-MANAGER.git ./motor_manager
+```
+
+
 ## Repository layout
 
 ```text
