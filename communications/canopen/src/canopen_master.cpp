@@ -1,138 +1,288 @@
 #include <cerrno>
-#include <chrono>
+#include <cstring>
 #include <stdexcept>
 #include <string>
-#include <system_error>
-#include <thread>
+
+#include <fcntl.h>
+#include <unistd.h>
+#include <net/if.h>
+#include <sys/ioctl.h>
+#include <sys/socket.h>
 
 #include "canopen/canopen_master.hpp"
 
-canopen::CanopenMaster::~CanopenMaster() = default;
-
 void canopen::CanopenMaster::initialize()
 {
-    interface_name_ = "can" + std::to_string(can_interface_index_);
-
-    io_guard_ = std::make_unique<lely::io::IoGuard>();
-    context_ = std::make_unique<lely::io::Context>();
-    poll_ = std::make_unique<lely::io::Poll>(*context_);
-    loop_ = std::make_unique<lely::ev::Loop>(poll_->get_poll());
-    auto executor = loop_->get_executor();
-
-    can_controller_ = std::make_unique<lely::io::CanController>(interface_name_.c_str());
-    if (can_bitrate_ > 0) {
-        int current_bitrate = 0;
-        can_controller_->get_bitrate(&current_bitrate);
-        if (current_bitrate != static_cast<int>(can_bitrate_)) {
-            can_controller_->set_bitrate(static_cast<int>(can_bitrate_));
-            can_controller_->restart();
-        } else if (can_controller_->stopped()) {
-            can_controller_->restart();
-        }
+    socket_ = ::socket(PF_CAN, SOCK_RAW | SOCK_NONBLOCK, CAN_RAW);
+    if (socket_ < 0) {
+        ::close(socket_);
+        socket_ = -1;
+        throw std::runtime_error("Failed to create CAN socket.");
     }
-    can_channel_ = std::make_unique<lely::io::CanChannel>(*poll_, executor);
-    can_channel_->open(*can_controller_);
+
+    const int flags = ::fcntl(socket_, F_GETFL, 0);
+    if (flags < 0) {
+        ::close(socket_);
+        socket_ = -1;
+        throw std::runtime_error("Failed to get CAN socket flags.");
+    }
+
+    if (::fcntl(socket_, F_SETFL, flags | O_NONBLOCK) < 0) {
+        ::close(socket_);
+        socket_ = -1;
+        throw std::runtime_error("Failed to set CAN socket flags.");
+    }
+
+    const std::string interface_name = "can" + std::to_string(interface_index_);
+
+    ifreq ifr {};
+    std::strncpy(ifr.ifr_name, interface_name.c_str(), IFNAMSIZ - 1);
+
+    if (::ioctl(socket_, SIOCGIFINDEX, &ifr) < 0) {
+        ::close(socket_);
+        socket_ = -1;
+        throw std::runtime_error("Failed to get CAN interface index.");
+    }
+
+    sockaddr_can addr {};
+    addr.can_family = AF_CAN;
+    addr.can_ifindex = ifr.ifr_ifindex;
+
+    if (::bind(socket_, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) < 0) {
+        ::close(socket_);
+        socket_ = -1;
+        throw std::runtime_error("Failed to bind CAN socket.");
+    }
 }
 
 void canopen::CanopenMaster::activate()
 {
-    if (!can_controller_ || !can_channel_) throw std::runtime_error("CAN channel is not initialized.");
-    if (!can_channel_->is_open()) {
-        can_channel_->open(*can_controller_);
-    }
-    latest_frame_valid_.fill(false);
-    active_ = true;
+    sendNmt(canopen::NMT_START, 0x00);
 }
 
 void canopen::CanopenMaster::deactivate()
 {
-    active_ = false;
-    if (can_channel_ && can_channel_->is_open()) {
-        can_channel_->close();
+    sendNmt(canopen::NMT_STOP, 0x00);
+
+    if (socket_ >= 0) {
+        ::close(socket_);
+        socket_ = -1;
     }
 }
 
 void canopen::CanopenMaster::transmit()
 {
+    for (uint8_t node_id = 1; node_id < motor_interface::MAX_CONTROLLER_SIZE; ++node_id) {
+        canopen_node_data_t& node = nodes_[node_id];
+
+        if (!node.rpdo_dirty) continue;
+        if (node.rpdo_size == 0 || node.rpdo_size > 16) throw std::runtime_error("Invalid RPDO size.");
+
+        can_frame rpdo1 {};
+        rpdo1.can_id = canopen::COB_RPDO1_BASE + node_id;
+        rpdo1.can_dlc = node.rpdo_size > 8 ? 8 : node.rpdo_size;
+        std::memcpy(rpdo1.data, node.rpdo, rpdo1.can_dlc);
+        sendFrame(rpdo1);
+
+        if (node.rpdo_size > 8) {
+        can_frame rpdo2 {};
+        rpdo2.can_id = canopen::COB_RPDO2_BASE + node_id;
+        rpdo2.can_dlc = node.rpdo_size - 8;
+        std::memcpy(rpdo2.data, node.rpdo + 8, rpdo2.can_dlc);
+        sendFrame(rpdo2);
+        }
+
+        node.rpdo_dirty = false;
+    }
 }
 
 void canopen::CanopenMaster::receive()
 {
-    if (!active_ || !can_channel_ || !can_channel_->is_open()) return;
+    can_frame frame {};
 
-    while (true) {
-        can_msg frame = CAN_MSG_INIT;
-        std::error_code ec;
-        const int result = can_channel_->read(&frame, nullptr, nullptr, 0, ec);
-        if (ec) {
-            if (ec.value() == EAGAIN || ec.value() == EWOULDBLOCK) break;
-            throw std::system_error(ec, "CANopen event loop read");
-        }
-        if (result <= 0) break;
+    while (receiveFrame(frame)) {
+        const uint16_t cob_id = frame.can_id & CAN_SFF_MASK;
 
-        if ((frame.flags & CAN_FLAG_IDE) == 0) {
-            const uint32_t can_id = frame.id & CAN_MASK_BID;
-            if (can_id < CAN_SFF_TABLE_SIZE) {
-                latest_frames_[can_id] = frame;
-                latest_frame_valid_[can_id] = true;
-            }
+        if ((cob_id >= canopen::COB_TPDO1_BASE &&
+             cob_id < canopen::COB_TPDO1_BASE + motor_interface::MAX_CONTROLLER_SIZE) || 
+            (cob_id >= canopen::COB_TPDO2_BASE &&
+             cob_id < canopen::COB_TPDO2_BASE + motor_interface::MAX_CONTROLLER_SIZE))
+        {
+            processTpdo(frame);
+        } else if (cob_id >= canopen::COB_HEARTBEAT &&
+                   cob_id < canopen::COB_HEARTBEAT + motor_interface::MAX_CONTROLLER_SIZE)
+        {
+            processHeardbeat(frame);           
         }
     }
 }
 
 void canopen::CanopenMaster::apply_application_time(const timespec& time)
 {
-    (void)time;
 }
 
 void canopen::CanopenMaster::save_clock()
 {
 }
 
-void canopen::CanopenMaster::sendFrame(const can_msg& frame)
+void canopen::CanopenMaster::registerNodes(uint8_t node_id)
 {
-    if (!can_channel_ || !can_channel_->is_open()) throw std::runtime_error("CAN channel is not initialized.");
-    if (!active_) throw std::runtime_error("CAN channel is not active.");
-    can_channel_->write(frame, -1);
+    if (node_id == 0 || node_id >= motor_interface::MAX_CONTROLLER_SIZE) throw std::runtime_error("Invalid node ID.");
+
+    nodes_[node_id].node_id = node_id;
+}
+
+canopen::canopen_node_data_t* canopen::CanopenMaster::node(uint8_t node_id)
+{
+    nodes_[node_id].node_id = node_id;
+    return &nodes_[node_id];
+}
+
+bool canopen::CanopenMaster::writeSdo(uint8_t node_id, uint16_t index, uint8_t subindex, const uint8_t* data, uint8_t size)
+{
+    can_frame req {};
+    req.can_id = canopen::COB_SDO_RX + node_id;
+    req.can_dlc = 8;
+
+    if (size == 1) {
+        req.data[0] = canopen::SDO_WRITE_1BYTE;
+    } else if (size == 2) {
+        req.data[0] = canopen::SDO_WRITE_2BYTE;
+    } else if (size == 4) {
+        req.data[0] = canopen::SDO_WRITE_4BYTE;
+    } else {
+        throw std::runtime_error("Invalid SDO size.");
+    }
+
+    req.data[1] = static_cast<uint8_t>(index & 0xFF);
+    req.data[2] = static_cast<uint8_t>((index >> 8) & 0xFF);
+    req.data[3] = subindex;
+
+    std::memcpy(&req.data[4], data, size);
+    sendFrame(req);
+
+    can_frame res {};
+    while (true) {
+        if (!receiveFrame(res)) {
+            if (errno == EAGAIN || errno == EWOULDBLOCK) continue;
+            return false;
+        }
+
+        const uint16_t cob_id = res.can_id & CAN_SFF_MASK;
+        if (cob_id != canopen::COB_SDO_TX + node_id)  continue;
+
+        if (res.data[0] == canopen::SDO_ABORT) return false;
+
+        return res.data[0] == canopen::SDO_WRITE_RES &&
+               res.data[1] == req.data[1] &&
+               res.data[2] == req.data[2] &&
+               res.data[3] == req.data[3];
+    }
+}
+
+bool canopen::CanopenMaster::readSdo(uint8_t node_id, uint16_t index, uint8_t subindex, uint8_t* data, uint8_t size)
+{
+    can_frame req {};
+    req.can_id = canopen::COB_SDO_RX + node_id;
+    req.can_dlc = 8;
+    req.data[0] = canopen::SDO_READ_REQ;
+    req.data[1] = static_cast<uint8_t>(index & 0xFF);
+    req.data[2] = static_cast<uint8_t>((index >> 8) & 0xFF);
+    req.data[3] = subindex;
+
+    sendFrame(req);
+
+    can_frame res {};
+    while (true) {
+        if (!receiveFrame(res)) {
+            if (errno == EAGAIN || errno == EWOULDBLOCK) continue;
+            return false;
+        }
+
+        const uint16_t cob_id = res.can_id & CAN_SFF_MASK;
+        if (cob_id != canopen::COB_SDO_TX + node_id) continue;
+
+        if (res.data[0] == canopen::SDO_ABORT) return false;
+
+        if (res.data[1] != req.data[1] ||
+            res.data[2] != req.data[2] ||
+            res.data[3] != req.data[3]) return false;
+
+        std::memcpy(data, &res.data[4], size);
+        return true;
+    }
 }
 
 void canopen::CanopenMaster::sendNmt(uint8_t command, uint8_t node_id)
 {
-    can_msg frame = CAN_MSG_INIT;
-    frame.id = 0x000;
-    frame.len = 2;
+    can_frame frame {};
+    frame.can_id = canopen::COB_NMT;
+    frame.can_dlc = 2;
     frame.data[0] = command;
     frame.data[1] = node_id;
+
     sendFrame(frame);
 }
 
-bool canopen::CanopenMaster::latestFrame(uint32_t can_id, can_msg& frame) const
+void canopen::CanopenMaster::sendFrame(const can_frame& frame)
 {
-    can_id &= CAN_MASK_BID;
-    if (can_id >= CAN_SFF_TABLE_SIZE || !latest_frame_valid_[can_id]) return false;
+    if (socket_ < 0) throw std::runtime_error("CAN socket not initialized.");
 
-    frame = latest_frames_[can_id];
-    return true;
+    const ssize_t n = ::write(socket_, &frame, sizeof(frame));
+    if (n != static_cast<ssize_t>(sizeof(frame))) throw std::runtime_error("Failed to send CAN frame.");
 }
 
-void canopen::CanopenMaster::clearFrame(uint32_t can_id)
+bool canopen::CanopenMaster::receiveFrame(can_frame& frame)
 {
-    can_id &= CAN_MASK_BID;
-    if (can_id < CAN_SFF_TABLE_SIZE) latest_frame_valid_[can_id] = false;
+    if (socket_ < 0) throw std::runtime_error("CAN socket not initialized.");
+
+    const ssize_t n = ::read(socket_, &frame, sizeof(frame));
+    if (n < 0) return false;
+
+    return n == static_cast<ssize_t>(sizeof(frame));
 }
 
-bool canopen::CanopenMaster::waitFrame(
-    uint32_t can_id,
-    can_msg& frame,
-    std::chrono::milliseconds timeout)
+void canopen::CanopenMaster::processTpdo(const can_frame& frame)
 {
-    const auto deadline = std::chrono::steady_clock::now() + timeout;
-    clearFrame(can_id);
+    const uint16_t cob_id = frame.can_id & CAN_SFF_MASK;
 
-    while (std::chrono::steady_clock::now() < deadline) {
-        receive();
-        if (latestFrame(can_id, frame)) return true;
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    uint8_t node_id = 0;
+    uint8_t offset = 0;
+
+    if (cob_id >= canopen::COB_TPDO1_BASE &&
+        cob_id < canopen::COB_TPDO1_BASE + motor_interface::MAX_CONTROLLER_SIZE)
+    {
+        node_id = static_cast<uint8_t>(cob_id - canopen::COB_TPDO1_BASE);
+        offset = 0;
+    } else if (cob_id >= canopen::COB_TPDO2_BASE &&
+               cob_id < canopen::COB_TPDO2_BASE + motor_interface::MAX_CONTROLLER_SIZE)
+    {
+        node_id = static_cast<uint8_t>(cob_id - canopen::COB_TPDO2_BASE);
+        offset = 8;
+    } else {
+        return;
     }
-    return false;
+
+    if (node_id ==0 || node_id > motor_interface::MAX_CONTROLLER_SIZE) return;
+    if (offset + frame.can_dlc > 16) return;
+
+    canopen_node_data_t& node = nodes_[node_id];
+
+    node.node_id = node_id;
+    std::memcpy(node.tpdo + offset, frame.data, frame.can_dlc);
+
+    const uint8_t end = offset + frame.can_dlc;
+    if (end > node.tpdo_size) node.tpdo_size = end;
+
+    node.tpdo_updated = true;
+}
+
+void canopen::CanopenMaster::processHeardbeat(const can_frame& frame)
+{
+    const uint16_t cob_id = frame.can_id & CAN_SFF_MASK;
+    const uint8_t node_id = static_cast<uint8_t>(cob_id - canopen::COB_HEARTBEAT);
+
+    if (node_id == 0 || node_id > motor_interface::MAX_CONTROLLER_SIZE) return;
+
+    nodes_[node_id].node_id = node_id;
 }

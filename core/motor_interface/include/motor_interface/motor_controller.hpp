@@ -7,12 +7,15 @@
 
 namespace motor_interface {
 
+inline constexpr uint8_t MAX_CONTROLLER_SIZE = 16;
+
 struct slave_config_t {
     uint8_t controller_index;
     uint8_t master_id;
     uint8_t driver_id;
     uint16_t alias{};
     uint16_t position{};
+    uint8_t node_id{};
     uint32_t vendor_id{};
     uint32_t product_id{};
     int8_t profile_mode{};

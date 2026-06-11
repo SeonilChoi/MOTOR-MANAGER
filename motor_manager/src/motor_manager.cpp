@@ -51,7 +51,7 @@ void motor_manager::MotorManager::loadConfigurations(const std::string& config_f
     if (!masters || !masters.IsSequence()) throw std::runtime_error("Invalid masters configuration.");
 
     uint8_t s_idx{0};
-    masters_.reserve(MAX_MASTER_SIZE);
+    masters_.reserve(motor_interface::MAX_MASTER_SIZE);
     for (const auto& m : masters) {
         motor_interface::master_config_t m_cfg{};
         m_cfg.id = m["id"].as<uint8_t>();
@@ -62,7 +62,7 @@ void motor_manager::MotorManager::loadConfigurations(const std::string& config_f
 
         switch (toCommunicationType(m["type"].as<std::string>())) {
         case CommunicationType::Ethercat: {
-            m_cfg.master_index = m["master_index"].as<unsigned int>();
+            m_cfg.ethercat_master_index = m["ethercat_master_index"].as<unsigned int>();
             masters_[m_cfg.id] = std::make_unique<ethercat::EthercatMaster>(m_cfg);
 
             for (uint8_t i = 0; i < m["number_of_slaves"].as<uint8_t>(); ++i) {
@@ -81,12 +81,8 @@ void motor_manager::MotorManager::loadConfigurations(const std::string& config_f
             }
             break;
         } case CommunicationType::Canopen: {
-            m_cfg.can_interface_index = m["can_interface_index"]
-                ? m["can_interface_index"].as<unsigned int>()
-                : m["master_index"].as<unsigned int>();
-            m_cfg.can_bitrate = m["can_bitrate"]
-                ? m["can_bitrate"].as<unsigned int>()
-                : 0;
+            m_cfg.can_interface_index = m["can_interface_index"].as<unsigned int>()
+            m_cfg.can_bitrate = m["can_bitrate"].as<unsigned int>();
 
             masters_[m_cfg.id] = std::make_unique<canopen::CanopenMaster>(m_cfg);
 
@@ -95,9 +91,7 @@ void motor_manager::MotorManager::loadConfigurations(const std::string& config_f
                 s_cfg.controller_index = slaves[i]["controller_index"].as<uint8_t>();
                 s_cfg.master_id = m_cfg.id;
                 s_cfg.driver_id = slaves[i]["driver_id"].as<uint8_t>();
-                s_cfg.position = slaves[i]["node_id"]
-                    ? slaves[i]["node_id"].as<uint16_t>()
-                    : slaves[i]["position"].as<uint16_t>();
+                s_cfg.node_id = slaves[i]["node_id"].as<uint8_t>();
                 s_cfg.profile_mode = slaves[i]["profile_mode"].as<int8_t>();
 
                 controllers_[s_cfg.controller_index] = std::make_unique<canopen::CanopenController>(s_cfg);
@@ -114,7 +108,7 @@ void motor_manager::MotorManager::loadConfigurations(const std::string& config_f
     YAML::Node drivers = root["drivers"];
     if (!drivers || !drivers.IsSequence()) throw std::runtime_error("Invalid drivers configuration.");
 
-    drivers_.reserve(MAX_DRIVER_SIZE);
+    drivers_.reserve(motor_interface::MAX_DRIVER_SIZE);
     for (const auto& d : drivers) {
         motor_interface::driver_config_t d_cfg{};
         d_cfg.id = d["id"].as<uint8_t>();
@@ -171,7 +165,7 @@ void motor_manager::MotorManager::initialize()
 
 void motor_manager::MotorManager::enable()
 {
-    uint8_t result[MAX_CONTROLLER_SIZE]{0};
+    uint8_t result[motor_interface::MAX_CONTROLLER_SIZE]{0};
     uint8_t sum{0};
 
     for (uint8_t i = 0; i < number_of_controllers_; ++i) {
@@ -183,7 +177,7 @@ void motor_manager::MotorManager::enable()
 
 void motor_manager::MotorManager::disable()
 {
-    uint8_t result[MAX_CONTROLLER_SIZE]{0};
+    uint8_t result[motor_interface::MAX_CONTROLLER_SIZE]{0};
     uint8_t sum{0};
 
     for (uint8_t i = 0; i < number_of_controllers_; ++i) {
@@ -196,7 +190,7 @@ void motor_manager::MotorManager::disable()
 void motor_manager::MotorManager::write(const motor_interface::motor_frame_t* command, const uint8_t size)
 {
     std::lock_guard<std::mutex> lock(frame_mutex_);
-    const uint8_t n = std::min(size, MAX_CONTROLLER_SIZE);
+    const uint8_t n = std::min(size, motor_interface::MAX_CONTROLLER_SIZE);
     for (uint8_t i = 0; i < n; ++i) {
         command_[i] = command[i];
     }

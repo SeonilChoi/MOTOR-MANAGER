@@ -16,10 +16,6 @@ namespace motor_manager {
 
 inline constexpr uint64_t NSEC_PER_SEC = 1000000000;
 
-inline constexpr uint8_t MAX_MASTER_SIZE = 8;
-inline constexpr uint8_t MAX_DRIVER_SIZE = 8;
-inline constexpr uint8_t MAX_CONTROLLER_SIZE = 16;
-
 enum class CommunicationType {
     Ethercat,
     Canopen,
@@ -89,7 +85,7 @@ private:
 
     std::unordered_map<uint8_t, std::unique_ptr<motor_interface::MotorDriver>> drivers_;
 
-    std::unique_ptr<motor_interface::MotorController> controllers_[MAX_CONTROLLER_SIZE];
+    std::unique_ptr<motor_interface::MotorController> controllers_[motor_interface::MAX_CONTROLLER_SIZE];
 
     uint32_t period_{0};
 
@@ -109,9 +105,9 @@ private:
 
     std::atomic<bool> is_command_changed_{false};
 
-    motor_interface::motor_frame_t command_[MAX_CONTROLLER_SIZE];
+    motor_interface::motor_frame_t command_[motor_interface::MAX_CONTROLLER_SIZE];
 
-    motor_interface::motor_frame_t status_[MAX_CONTROLLER_SIZE];
+    motor_interface::motor_frame_t status_[motor_interface::MAX_CONTROLLER_SIZE];
 };
 
 } // namespace motor_manager

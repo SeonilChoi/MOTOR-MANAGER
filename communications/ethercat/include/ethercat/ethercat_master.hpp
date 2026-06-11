@@ -11,7 +11,7 @@ class EthercatMaster : public motor_interface::MotorMaster {
 public:
     explicit EthercatMaster(const motor_interface::master_config_t& config)
     : motor_interface::MotorMaster(config)
-    , master_index_(config.master_index) {}
+    , master_index_(config.ethercat_master_index) {}
 
     virtual ~EthercatMaster() = default;
 

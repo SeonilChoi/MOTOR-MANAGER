@@ -1,5 +1,10 @@
 # Motor Manager
 
+<p align="left">
+  <img src="images/banner.gif" alt="EtherCAT simultaneous control demo with Panasonic Minas actuators and Zeroerr eRob motors">
+</p>
+<p align="left"><em>Execution result: simultaneous EtherCAT control of two Panasonic Minas actuators and three Zeroerr eRob motors.</em></p>
+
 ## Overview
 
 EtherCAT motor stack as one `ament_cmake` package: abstract interfaces, EtherCAT transport, vendor drivers, and a YAML-driven `MotorManager` over `motor_frame_t` (`common_motor_interface`).

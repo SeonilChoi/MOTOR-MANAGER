@@ -1,85 +1,97 @@
 #ifndef CANOPEN_CANOPEN_MASTER_HPP_
 #define CANOPEN_CANOPEN_MASTER_HPP_
 
-#include <array>
-#include <chrono>
-#include <cstdint>
-#include <memory>
-#include <string>
-
-#include <lely/ev/loop.hpp>
-#include <lely/io2/can/msg.hpp>
-#include <lely/io2/linux/can.hpp>
-#include <lely/io2/posix/poll.hpp>
-#include <lely/io2/sys/io.hpp>
+#include <linux/can.h>
 
 #include "motor_interface/motor_master.hpp"
+#include "motor_interface/motor_controller.hpp" // MAX_CONTROLLER_SIZE
 
 namespace canopen {
+
+inline constexpr uint16_t MAX_CAN_FRAME_QUEUE_SIZE = 1024;
+
+inline constexpr uint16_t COB_NMT        = 0x000;
+
+inline constexpr uint16_t COB_TPDO1_BASE = 0x180;
+inline constexpr uint16_t COB_TPDO2_BASE = 0x280;
+
+inline constexpr uint16_t COB_RPDO1_BASE = 0x200;
+inline constexpr uint16_t COB_RPDO2_BASE = 0x300;
+
+inline constexpr uint16_t COB_SDO_TX     = 0x580;
+inline constexpr uint16_t COB_SDO_RX     = 0x600;
+inline constexpr uint16_t COB_HEARTBEAT  = 0x700;
+
+inline constexpr uint8_t NMT_START = 0x01;
+inline constexpr uint8_t NMT_STOP  = 0x02;
+
+inline constexpr uint8_t SDO_WRITE_1BYTE = 0x2F;
+inline constexpr uint8_t SDO_WRITE_2BYTE = 0x2B;
+inline constexpr uint8_t SDO_WRITE_4BYTE = 0x23;
+
+inline constexpr uint8_t SDO_READ_REQ    = 0x40;
+inline constexpr uint8_t SDO_WRITE_RES   = 0x60;
+inline constexpr uint8_t SDO_ABORT       = 0x80;
+
+struct canopen_node_data_t {
+    uint8_t node_id{0};
+    uint8_t rpdo[16]{0}; // RPDO1 8 bytes, RPDO2 8 bytes
+    uint8_t tpdo[16]{0}; // TPDO1 8 bytes, TPDO2 8 bytes
+    uint8_t rpdo_size{8};
+    uint8_t tpdo_size{0};
+    bool tpdo_updated{false};
+    bool rpdo_dirty{false};
+};
 
 class CanopenMaster : public motor_interface::MotorMaster {
 public:
     explicit CanopenMaster(const motor_interface::master_config_t& config)
     : motor_interface::MotorMaster(config)
-    , can_interface_index_(config.can_interface_index)
-    , can_bitrate_(config.can_bitrate) {}
+    , interface_index_(config.can_interface_index)
+    , bitrate_(config.can_bitrate) {}
 
-    virtual ~CanopenMaster();
+    virtual ~CanopenMaster() = default;
 
-    virtual void initialize() override;
+    void initialize() override;
 
-    virtual void activate() override;
+    void activate() override;
 
-    virtual void deactivate() override;
+    void deactivate() override;
 
-    virtual void transmit() override;
+    void transmit() override;
 
-    virtual void receive() override;
+    void receive() override;
 
-    virtual void apply_application_time(const timespec& time) override;
+    void apply_application_time(const timespec& time) override;
 
-    virtual void save_clock() override;
+    void save_clock() override;
 
-    void sendFrame(const can_msg& frame);
+    void registerNodes(uint8_t node_id);
 
-    void sendNmt(uint8_t command, uint8_t node_id);
+    canopen_node_data_t* node(uint8_t node_id);
 
-    bool latestFrame(uint32_t can_id, can_msg& frame) const;
+    bool writeSdo(uint8_t node_id, uint16_t index, uint8_t subindex, const uint8_t* data, uint8_t size);
 
-    void clearFrame(uint32_t can_id);
-
-    bool waitFrame(uint32_t can_id, can_msg& frame, std::chrono::milliseconds timeout);
-
-    unsigned int can_interface_index() const { return can_interface_index_; }
-
-    unsigned int can_bitrate() const { return can_bitrate_; }
+    bool readSdo(uint8_t node_id, uint16_t index, uint8_t subindex, uint8_t* data, uint8_t size);
 
 private:
-    static constexpr std::size_t CAN_SFF_TABLE_SIZE = 0x800;
+    void sendNmt(uint8_t command, uint8_t node_id);
 
-    std::unique_ptr<lely::io::IoGuard> io_guard_;
+    void sendFrame(const can_frame& frame);
 
-    std::unique_ptr<lely::io::Context> context_;
+    bool receiveFrame(can_frame& frame);
 
-    std::unique_ptr<lely::io::Poll> poll_;
+    void processTpdo(const can_frame& frame);
 
-    std::unique_ptr<lely::ev::Loop> loop_;
+    void processHeardbeat(const can_frame& frame);
 
-    std::unique_ptr<lely::io::CanController> can_controller_;
+    int socket_{-1};
 
-    std::unique_ptr<lely::io::CanChannel> can_channel_;
+    unsigned int interface_index_{0};
 
-    std::array<can_msg, CAN_SFF_TABLE_SIZE> latest_frames_{};
+    unsigned int bitrate_{0};
 
-    std::array<bool, CAN_SFF_TABLE_SIZE> latest_frame_valid_{};
-
-    bool active_{false};
-
-    std::string interface_name_;
-
-    const unsigned int can_interface_index_{0};
-
-    const unsigned int can_bitrate_{0};
+    canopen_node_data_t nodes_[motor_interface::MAX_CONTROLLER_SIZE]{};
 };
 
 } // namespace canopen

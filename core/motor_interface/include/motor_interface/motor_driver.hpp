@@ -11,6 +11,8 @@
 
 namespace motor_interface {
 
+inline constexpr uint8_t MAX_DRIVER_SIZE = 8;
+
 inline constexpr uint8_t MAX_DATA_SIZE = 4;
 inline constexpr uint8_t MAX_ITEM_SIZE = 32;
 

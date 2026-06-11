@@ -6,10 +6,12 @@
 
 namespace motor_interface {
 
+inline constexpr uint8_t MAX_MASTER_SIZE = 8;
+
 struct master_config_t {
     uint8_t id;
     uint8_t number_of_slaves;
-    unsigned int master_index{};
+    unsigned int ethercat_master_index{};
     unsigned int can_interface_index{};
     unsigned int can_bitrate{};
 };
