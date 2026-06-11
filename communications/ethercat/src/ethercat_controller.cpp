@@ -90,39 +90,36 @@ void ethercat::EthercatController::check(const motor_interface::motor_frame_t& s
 void ethercat::EthercatController::write(const motor_interface::motor_frame_t& command)
 {
     motor_interface::entry_table_t rx_interfaces[motor_interface::MAX_INTERFACE_SIZE]{0};
-    const uint8_t n_rx = std::min(
-        command.number_of_target_interfaces,
-        motor_interface::MAX_INTERFACE_SIZE);
+    
+    const uint8_t n_rx = std::min(command.number_of_target_interfaces,motor_interface::MAX_INTERFACE_SIZE);
     for (uint8_t i = 0; i < n_rx; ++i) {
-        if (command.target_interface_id[i] == motor_interface::ID_CONTROLWORD) {
-            rx_interfaces[i].id = motor_interface::ID_CONTROLWORD;
+        const uint8_t id = command.target_interface_id[i];
+
+        if (id == motor_interface::ID_CONTROLWORD) {
+            rx_interfaces[i].id = id;
             rx_interfaces[i].type = motor_interface::DataType::U16;
+            rx_interfaces[i].size = 2;
             motor_interface::fill<uint16_t>(command.controlword, rx_interfaces[i].data);
-        } else if (command.target_interface_id[i] == motor_interface::ID_TARGET_POSITION) {
-            rx_interfaces[i].id = motor_interface::ID_TARGET_POSITION;
+        } else if (id == motor_interface::ID_TARGET_POSITION) {
+            rx_interfaces[i].id = id;
             rx_interfaces[i].type = motor_interface::DataType::S32;
-            motor_interface::fill<int32_t>(
-                driver_->position(command.position),
-                rx_interfaces[i].data
-            );
-        } else if (command.target_interface_id[i] == motor_interface::ID_TARGET_VELOCITY) {
-            rx_interfaces[i].id = motor_interface::ID_TARGET_VELOCITY;
+            rx_interfaces[i].size = 4;
+            motor_interface::fill<int32_t>(driver_->position(command.position), rx_interfaces[i].data);
+        } else if (id == motor_interface::ID_TARGET_VELOCITY) {
+            rx_interfaces[i].id = id;
             rx_interfaces[i].type = motor_interface::DataType::S32;
-            motor_interface::fill<int32_t>(
-                driver_->velocity(command.velocity),
-                rx_interfaces[i].data
-            );
-        } else if (command.target_interface_id[i] == motor_interface::ID_TARGET_TORQUE) {
-            rx_interfaces[i].id = motor_interface::ID_TARGET_TORQUE;
+            rx_interfaces[i].size = 4;
+            motor_interface::fill<int32_t>(driver_->velocity(command.velocity), rx_interfaces[i].data);
+        } else if (id == motor_interface::ID_TARGET_TORQUE) {
+            rx_interfaces[i].id = id;
             rx_interfaces[i].type = motor_interface::DataType::S16;
-            motor_interface::fill<int16_t>(
-                driver_->torque(command.torque),
-                rx_interfaces[i].data
-            );
+            rx_interfaces[i].size = 2;
+            motor_interface::fill<int16_t>(driver_->torque(command.torque), rx_interfaces[i].data);
         } else {
             throw std::runtime_error("Invalid RX interface ID.");
         }
     }
+    
     writeData(rx_interfaces, n_rx);
 }
 
@@ -130,23 +127,24 @@ void ethercat::EthercatController::read(motor_interface::motor_frame_t& status)
 {
     readData(tx_interfaces_, driver_->number_of_tx_interfaces());
     for (uint8_t i = 0; i < driver_->number_of_tx_interfaces(); ++i) {
-        if (tx_interfaces_[i].id == motor_interface::ID_STATUSWORD) {
-            status.statusword = motor_interface::value<uint16_t>(tx_interfaces_[i].data);
-        } else if (tx_interfaces_[i].id == motor_interface::ID_ERRORCODE) {
-            status.errorcode = motor_interface::value<uint16_t>(tx_interfaces_[i].data);
-        } else if (tx_interfaces_[i].id == motor_interface::ID_CURRENT_POSITION) {
+        const motor_interface::entry_table_t& e = tx_interfaces_[i];
+
+        if (e.id == motor_interface::ID_STATUSWORD) {
+            status.statusword = motor_interface::value<uint16_t>(e.data);
+        } else if (e.id == motor_interface::ID_ERRORCODE) {
+            status.errorcode = motor_interface::value<uint16_t>(e.data);
+        } else if (e.id == motor_interface::ID_CURRENT_POSITION) {
             int32_t value = motor_interface::value<int32_t>(tx_interfaces_[i].data);
             status.position = driver_->position(value);
-        } else if (tx_interfaces_[i].id == motor_interface::ID_CURRENT_VELOCITY) {
-            int32_t value = motor_interface::value<int32_t>(tx_interfaces_[i].data);
-            status.velocity = driver_->velocity(value);
-        } else if (tx_interfaces_[i].id == motor_interface::ID_CURRENT_TORQUE) {
-            int16_t value = motor_interface::value<int16_t>(tx_interfaces_[i].data);
-            status.torque = driver_->torque(value);
+        } else if (e.id == motor_interface::ID_CURRENT_VELOCITY) {
+            status.velocity = driver_->velocity(motor_interface::value<int32_t>(e.data));
+        } else if (e.id == motor_interface::ID_CURRENT_TORQUE) {
+            status.torque = driver_->torque(motor_interface::value<int16_t>(e.data));
         } else {
             throw std::runtime_error("Invalid TX interface ID.");
         }
     }
+
     status.controller_index = index_;
 }
 
@@ -261,6 +259,7 @@ void ethercat::EthercatController::readData(motor_interface::entry_table_t* tx_i
 void ethercat::EthercatController::addSlaveConfigSdos()
 {
     const motor_interface::entry_table_t* items = driver_->items();
+    
     for (uint8_t i = 0; i < driver_->number_of_items(); ++i) {
         switch (items[i].type) {
         case motor_interface::DataType::U8: {
@@ -277,7 +276,7 @@ void ethercat::EthercatController::addSlaveConfigSdos()
             break;
         } case motor_interface::DataType::S8: {
             int8_t value = motor_interface::value<int8_t>(items[i].data);
-            if (items[i].index == 0x6060 && items[i].subindex == 0x00) {
+            if (items[i].id == motor_interface::ID_OPERATING_MODE) {
                 if (profile_mode_ == 0) {
                     value = static_cast<int8_t>(driver_->profile_position_value());
                 } else if (profile_mode_ == 1) {

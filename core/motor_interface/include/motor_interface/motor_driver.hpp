@@ -26,6 +26,8 @@ inline constexpr uint8_t ID_CURRENT_POSITION = 6;
 inline constexpr uint8_t ID_CURRENT_VELOCITY = 7;
 inline constexpr uint8_t ID_CURRENT_TORQUE   = 8;
 
+inline constexpr uint8_t ID_OPERATING_MODE = 30;
+
 inline constexpr uint8_t ID_MAX_TORQUE           = 50;
 inline constexpr uint8_t ID_MIN_POSITION_LIMIT   = 51;
 inline constexpr uint8_t ID_MAX_POSITION_LIMIT   = 52;

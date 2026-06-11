@@ -29,15 +29,13 @@ public:
     void read(motor_interface::motor_frame_t& status) override;
 
 private:
-    void registerEntries() override;
-
     void writeData(const motor_interface::entry_table_t* rx_interfaces, uint8_t number_of_rx_interfaces) override;
 
     void readData(motor_interface::entry_table_t* tx_interfaces, uint8_t number_of_tx_interfaces) override;
 
-    void downloadItems();
+    void addSlaveConfigSdos();
 
-    bool isRxInterfaceEnabled(const motor_interface::entry_table_t& entry) const;
+    void addSlaveConfigPdos();
 
     void copyToPdo(uint8_t* pdo, uint8_t offset, const uint8_t* data, uint8_t size);
 
@@ -47,15 +45,15 @@ private:
 
     canopen_node_data_t* node_{nullptr};
 
+    uint8_t offset_[motor_interface::MAX_INTERFACE_SIZE]{0};
+
+    motor_interface::entry_table_t tx_interfaces_[motor_interface::MAX_INTERFACE_SIZE];
+
     uint8_t node_id_{0};
 
     uint8_t rpdo_size_{0};
 
     uint8_t tpdo_size_{0};
-
-    uint8_t offset_[motor_interface::MAX_INTERFACE_SIZE]{0};
-
-    motor_interface::entry_table_t tx_interfaces_[motor_interface::MAX_INTERFACE_SIZE];
 };
 
 } // namespace canopen

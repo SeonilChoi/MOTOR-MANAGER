@@ -65,6 +65,7 @@ void zeroerr::ZeroerrDriver::loadParameters(const std::string& param_file)
         e_cfg.id = i["id"].as<uint8_t>();
         e_cfg.index = i["index"].as<uint16_t>();
         e_cfg.subindex = i["subindex"].as<uint8_t>();
+        e_cfg.size = i["size"].as<uint8_t>();
         e_cfg.type = motor_interface::toDataType(i["type"].as<std::string>());
 
         if (e_cfg.id == motor_interface::ID_MIN_POSITION_LIMIT) {
