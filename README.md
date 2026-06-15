@@ -3,65 +3,166 @@
 <p align="left">
   <img src="images/banner.gif" alt="EtherCAT simultaneous control demo with Panasonic Minas actuators and Zeroerr eRob motors">
 </p>
-<p align="left"><em>Execution result: simultaneous EtherCAT control of two Panasonic Minas actuators and three Zeroerr eRob motors.</em></p>
 
-## Overview
+`motor_manager` is an `ament_cmake` C++ library package for cyclic motor control. It contains the abstract motor interfaces, EtherCAT and CANopen transports, MINAS and ZeroErr driver mappings, and the YAML-driven `motor_manager::MotorManager` runtime.
 
-EtherCAT motor stack as one `ament_cmake` package: abstract interfaces, EtherCAT transport, vendor drivers, and a YAML-driven `MotorManager` over `motor_frame_t` (`common_motor_interface`).
+## Packages and libraries
 
-## Clone
+This repository is built as one ROS 2 package named `motor_manager`.
+
+| Path | Library | Purpose |
+| --- | --- | --- |
+| `core/motor_interface` | `motor_interface` | Common `MotorMaster`, `MotorController`, and `MotorDriver` abstractions. |
+| `communications/ethercat` | `ethercat` | IgH EtherCAT master/controller implementation. |
+| `communications/canopen` | `canopen` | SocketCAN CANopen master/controller implementation. |
+| `hardware/minas` | `minas` | Panasonic MINAS CiA402 driver mapping. |
+| `hardware/zeroerr` | `zeroerr` | ZeroErr CiA402 driver mapping. |
+| `motor_manager` | `motor_manager` | YAML configuration loader and cyclic runtime loop. |
+
+## Build
+
+`motor_manager` depends on:
+
+- ROS 2 with `ament_cmake`
+- `common_motor_interface`
+- `yaml-cpp`
+- IgH EtherCAT headers and library: `ecrt.h` and `libethercat`
+
+From the root of a colcon workspace:
 
 ```bash
-mkdir motor_manager
-git clone https://github.com/SeonilChoi/MOTOR-MANAGER.git ./motor_manager
+rosdep install --from-paths src --ignore-src -r -y
+colcon build --packages-up-to motor_manager
+source install/setup.bash
 ```
 
-## Setup
+If IgH EtherCAT is installed in a non-standard path, set:
 
-#### EtherCAT
-```bash ethercat
+```bash
+colcon build --packages-up-to motor_manager --cmake-args \
+  -DMOTOR_MANAGER_IGH_ETHERCAT_INCLUDE_DIR=/path/to/include \
+  -DMOTOR_MANAGER_IGH_ETHERCAT_LIB=/path/to/libethercat.so
+```
+
+## Device setup
+
+### EtherCAT
+
+```bash
 sudo ethercatctl restart
-sudo chmod 777 /dev/EtherCAT0
+sudo chmod 666 /dev/EtherCAT0
 ```
 
-#### CANopen
-```bash canopen
+### CANopen
+
+Bring up a SocketCAN interface before starting the manager. For example, with a CANable adapter:
+
+```bash
 sudo slcand -o -c -s8 /dev/CANable can0
 sudo ip link set can0 up
 ```
 
-## Repository layout
+The current CANopen implementation binds to `can<can_interface_index>` from the YAML configuration.
+
+## Configuration
+
+`MotorManager` loads one YAML file. The top-level keys are `period`, `masters`, and `drivers`.
+
+```yaml
+period: 1000000
+masters:
+  - id: 0
+    type: ethercat
+    number_of_slaves: 1
+    ethercat_master_index: 0
+    slaves:
+      - controller_index: 0
+        driver_id: 0
+        alias: 0
+        position: 0
+        vendor_id: 0x5a65726f
+        product_id: 0x00029252
+        profile_mode: 0
+drivers:
+  - id: 0
+    type: zeroerr
+    pulse_per_revolution: 524288
+    rated_torque: 52.0
+    unit_torque: 0.1
+    lower: -1.0
+    upper: 1.0
+    speed: 3000
+    acceleration: 2.5
+    deceleration: 2.5
+    profile_velocity: 2.5
+    profile_acceleration: 2.5
+    profile_deceleration: 2.5
+    profile_position_value: 1
+    profile_velocity_value: 3
+    profile_torque_value: 4
+    param_file: ../param
+```
+
+`profile_mode` selects which command PDO is kept active:
+
+| Value | Mode |
+| --- | --- |
+| `0` | Profile position |
+| `1` | Profile velocity |
+| `2` | Profile torque |
+
+For each driver, `param_file` points to a directory. The driver loads `<param_file>/<type>.yaml`, resolved relative to the main config file when the path is not absolute.
+
+Examples in this workspace:
+
+- `src/ros2/motion_system_ros2/ros2_motor_manager/config/example_ethercat_zeroerr.yaml`
+- `src/ros2/motion_system_ros2/ros2_motor_manager/config/example_canopen_zeroerr.yaml`
+- `src/ros2/motion_system_ros2/ros2_motor_manager/param/zeroerr.yaml`
+
+## Runtime API
+
+`motor_manager::MotorManager` is constructed with a config file path:
+
+```cpp
+motor_manager::MotorManager manager(config_file);
+manager.run();
+```
+
+The cyclic loop:
+
+1. Activates every master.
+2. Locks memory and requests `SCHED_FIFO`.
+3. Sleeps at the configured nanosecond `period`.
+4. Receives bus data.
+5. Enables drives, applies command updates, or disables drives when requested.
+6. Syncs clocks where supported.
+7. Transmits bus data.
+
+Commands and status use `motor_interface::motor_frame_t` from `common_motor_interface`.
+
+| Function | Purpose |
+| --- | --- |
+| `run()` | Starts the real-time cyclic loop and blocks until exit/disable. |
+| `write(command, size)` | Copies up to `MAX_CONTROLLER_SIZE` command frames into the manager. |
+| `read(status)` | Copies the latest status frames out of the manager. |
+| `request_stop()` | Requests CiA402 disable and lets `run()` return after all axes report disabled. |
+| `request_exit()` | Stops the loop without waiting for drive disable. |
+| `period()` | Returns the configured cycle period in nanoseconds. |
+| `number_of_controllers()` | Returns the number of configured controllers. |
+
+## Layout
 
 ```text
 motor_manager/
 ├── CMakeLists.txt
 ├── package.xml
-├── README.md
+├── communications/
+│   ├── canopen/
+│   └── ethercat/
 ├── core/
 │   └── motor_interface/
-│       ├── CMakeLists.txt
-│       ├── README.md
-│       └── include/motor_interface/
-├── communications/
-│   └── ethercat/
-│       ├── CMakeLists.txt
-│       ├── README.md
-│       ├── include/ethercat/
-│       └── src/
 ├── hardware/
 │   ├── minas/
-│   │   ├── CMakeLists.txt
-│   │   ├── README.md
-│   │   ├── include/minas/
-│   │   └── src/
 │   └── zeroerr/
-│       ├── CMakeLists.txt
-│       ├── README.md
-│       ├── include/zeroerr/
-│       └── src/
 └── motor_manager/
-    ├── CMakeLists.txt
-    ├── README.md
-    ├── include/motor_manager/
-    └── src/
 ```

@@ -1,33 +1,82 @@
 # ethercat
 
-IgH EtherCAT integration: **`EthercatMaster`** (`MotorMaster`) and **`EthercatController`** (`MotorController`) under namespace `ethercat`. Maps PDOs and **`motor_frame_t`** to the domain process image.
+IgH EtherCAT transport for `motor_manager`.
+
+This module provides:
+
+- `ethercat::EthercatMaster`, derived from `motor_interface::MotorMaster`
+- `ethercat::EthercatController`, derived from `motor_interface::MotorController`
+
+It maps driver SDO/PDO tables to IgH EtherCAT slave configuration and the domain process image.
+
+## Requirements
+
+The top-level `motor_manager` package requires:
+
+- `ecrt.h`
+- `libethercat`
+
+The root `CMakeLists.txt` searches `/usr/local`, `/usr`, and `/opt/etherlab`. Set `MOTOR_MANAGER_IGH_ETHERCAT_INCLUDE_DIR` and `MOTOR_MANAGER_IGH_ETHERCAT_LIB` when the IgH install is elsewhere.
+
+## Device setup
+
+```bash
+sudo ethercatctl restart
+sudo chmod 666 /dev/EtherCAT0
+```
+
+## YAML fields
+
+EtherCAT masters are selected with `masters[].type: ethercat`.
+
+```yaml
+masters:
+  - id: 0
+    type: ethercat
+    number_of_slaves: 1
+    ethercat_master_index: 0
+    slaves:
+      - controller_index: 0
+        driver_id: 0
+        alias: 0
+        position: 0
+        vendor_id: 0x5a65726f
+        product_id: 0x00029252
+        profile_mode: 0
+```
+
+| Field | Meaning |
+| --- | --- |
+| `ethercat_master_index` | IgH master index passed to `ecrt_request_master`. |
+| `alias` | EtherCAT slave alias. |
+| `position` | EtherCAT ring position. |
+| `vendor_id` | Slave vendor ID. |
+| `product_id` | Slave product code. |
+| `profile_mode` | `0`: position, `1`: velocity, `2`: torque. Used when setting operation mode and filtering target PDOs. |
 
 ## `EthercatMaster`
 
 | Function | Description |
-|----------|-------------|
-| `initialize()` | Requests the IgH master (`ecrt_request_master`), creates a domain (`ecrt_master_create_domain`). Throws if either fails. |
-| `activate()` | Activates the master and caches the domain process-data pointer (`ecrt_domain_data`). Throws on failure. |
-| `deactivate()` | Deactivates the master (`ecrt_master_deactivate`). Throws on failure. |
-| `transmit()` | Queues domain datagrams and sends frames (`ecrt_domain_queue`, `ecrt_master_send`). Throws on failure. |
-| `receive()` | Receives frames and processes the domain (`ecrt_master_receive`, `ecrt_domain_process`). Throws on failure. |
-| `apply_application_time(time)` | Converts `timespec` to nanoseconds and calls `ecrt_master_application_time` (distributed clock / app time). |
+| --- | --- |
+| `initialize()` | Requests the IgH master and creates a domain. |
+| `activate()` | Activates the master and caches `ecrt_domain_data`. |
+| `deactivate()` | Deactivates the IgH master. |
+| `transmit()` | Queues the domain and sends datagrams. |
+| `receive()` | Receives frames and processes the domain. |
+| `apply_application_time(time)` | Converts `timespec` to nanoseconds and calls `ecrt_master_application_time`. |
 | `save_clock()` | Calls `ecrt_master_sync_slave_clocks`. |
-| `master()` | Returns the `ec_master_t*` handle. |
-| `domain()` | Returns the `ec_domain_t*` handle. |
-| `domain_pd()` | Returns the domain process-image base pointer used for `EC_READ_*` / `EC_WRITE_*`. |
-| `master_index()` | IgH master index from `master_config_t`. |
+| `master()` / `domain()` / `domain_pd()` | Return IgH handles used by the controller. |
 
 ## `EthercatController`
 
 | Function | Description |
-|----------|-------------|
-| `initialize(master, driver)` | Casts `master` to `EthercatMaster`, creates `ecrt_master_slave_config` for alias/position/vendor/product, then registers PDO/SDO layout. Throws if the cast or slave config fails. |
-| `registerEntries()` | Runs SDO download from the driver’s `items_` (`addSlaveConfigSdos`) and PDO registration / offsets (`addSlaveConfigPdos`). |
-| `enable()` | Reads statusword from the domain, asks the driver for the next controlword step (`isEnabled`); writes controlword to the domain until the sequence reports done. Returns `true` when enabled, `false` while stepping. |
-| `disable()` | Same pattern as `enable()` using `isDisabled`. |
-| `check(status)` | If `driver_->isReceived` accepts the given `status.statusword`, writes the resulting controlword into the domain. |
-| `write(command)` | Builds RX `entry_table_t` rows from `command.target_interface_id` (controlword, target position/velocity/torque with driver scaling), then `writeData` into the domain. Throws on unknown RX id. |
-| `read(status)` | `readData` from the domain into TX buffers, then fills `statusword`, `errorcode`, `position`, `velocity`, `torque` (driver de-scaling) and sets `controller_index`. Throws on unknown TX id. |
+| --- | --- |
+| `initialize(master, driver)` | Casts the master, creates `ecrt_master_slave_config`, registers SDO/PDO entries, and configures distributed clocks. |
+| `registerEntries()` | Runs SDO setup and PDO setup. |
+| `enable()` | Reads statusword from the domain and writes the next driver controlword until the driver reports enabled. |
+| `disable()` | Writes the disable transition controlword until the driver reports disabled. |
+| `check(status)` | Handles set-point acknowledge through `driver_->isReceived`. |
+| `write(command)` | Converts command fields to raw RX PDO entries and writes them into the domain. |
+| `read(status)` | Reads TX PDO entries from the domain, applies driver scaling, and fills `motor_frame_t`. |
 
-Internal: `writeData` / `readData` map `entry_table_t` types to `EC_WRITE_*` / `EC_READ_*` at `offset_[id]`; `addSlaveConfigSdos` applies CoE SDOs from driver items; `addSlaveConfigPdos` builds sync/PDO layout, registers entries with the domain, and fills `tx_interfaces_` / `offset_`.
+The controller supports target IDs `ID_CONTROLWORD`, `ID_TARGET_POSITION`, `ID_TARGET_VELOCITY`, and `ID_TARGET_TORQUE` on writes, and status/error/current position/current velocity/current torque IDs on reads.

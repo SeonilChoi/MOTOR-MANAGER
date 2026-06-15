@@ -1,41 +1,78 @@
 # minas
 
-**`MinasDriver`**: Panasonic MINAS CiA402 mapping, parameter YAML loading, and unit conversion. Built into `motor_manager`; YAML `drivers[].type: "minas"`.
+Panasonic MINAS driver mapping for `motor_manager`.
 
-## `MinasDriver` functions
+`minas::MinasDriver` derives from `motor_interface::MotorDriver` and provides:
+
+- YAML loading for MINAS SDO items and PDO interfaces
+- CiA402-style enable/disable state transitions
+- set-point acknowledge handling
+- raw/physical unit conversion for position, velocity, and torque
+
+Select this driver with:
+
+```yaml
+drivers:
+  - id: 0
+    type: minas
+    param_file: ../param
+```
+
+The driver loads `<param_file>/minas.yaml`.
+
+## Configuration values used by the driver
+
+The following `driver_config_t` fields are substituted into YAML items when matching semantic IDs are found:
+
+| Semantic ID | Value source | Conversion |
+| --- | --- | --- |
+| `ID_MAX_TORQUE` | `unit_torque` | `2.0 / unit_torque * 100.0` as `uint16_t`. |
+| `ID_MIN_POSITION_LIMIT` | `lower` | radians to encoder counts. |
+| `ID_MAX_POSITION_LIMIT` | `upper` | radians to encoder counts. |
+| `ID_MAX_MOTOR_SPEED` | `speed` | copied as `uint32_t`. |
+| `ID_PROFILE_VELOCITY` | `profile_velocity` | rad/s to counts. |
+| `ID_PROFILE_ACCELERATION` | `profile_acceleration` | rad/s^2 to counts. |
+| `ID_PROFILE_DECELERATION` | `profile_deceleration` | rad/s^2 to counts. |
+| `ID_MAX_ACCELERATION` | `acceleration` | rad/s^2 to counts. |
+| `ID_MAX_DECELERATION` | `deceleration` | rad/s^2 to counts. |
+
+Other YAML item values are copied according to their declared `type`.
+
+## YAML format
+
+```yaml
+items:
+  - { id: 30, index: 0x6060, subindex: 0x00, size: 1, value: 1, type: s8 }
+interfaces:
+  - { id: 98, index: 0x1600 }
+  - { id: 0, index: 0x6040, subindex: 0x00, size: 2, type: u16 }
+  - { id: 99, index: 0x1A00 }
+  - { id: 4, index: 0x6041, subindex: 0x00, size: 2, type: u16 }
+```
+
+`ID_RXPDO` (`98`) and `ID_TXPDO` (`99`) are marker rows. Other rows become PDO entries. RX entries are counted when `id <= ID_TARGET_TORQUE`; remaining entries are counted as TX entries.
+
+## Runtime behavior
 
 | Function | Description |
-|----------|-------------|
-| `MinasDriver(config)` | Forwards `driver_config_t` to `MotorDriver`; no extra state. |
-| `loadParameters(param_file)` | Loads YAML `items` into `items_` (CoE values): special-case IDs fill limits, max torque, speed, and profile fields from `config_`; others use `value` by type. Loads `interfaces` into `interfaces_` and sets RX/TX counts from PDO entries vs `ID_RXPDO` / `ID_TXPDO` markers. Throws on bad YAML or unknown types. |
-| `isEnabled(data, driver_state, out)` | CiA402-style state machine from `DriverState` and statusword in `data`; writes next controlword to `out`. Handles fault → fault reset. Returns `true` only in `OperationEnabled`. |
-| `isDisabled(data, driver_state, out)` | Reverse sequence toward `SwitchOnDisabled`; writes controlword to `out`. Returns `true` when already `SwitchOnDisabled`. |
-| `isReceived(data, out)` | If statusword has set-point acknowledge bit, writes `0x000F` to `out` and returns `true`; else `false`. |
-| `position` / `velocity` / `torque` (raw ↔ physical) | Same formulas as `MotorDriver` contract: position/velocity use `pulse_per_revolution` and \(2\pi\) rad per rev; torque uses `rated_torque`, `unit_torque`, and 0.01% scaling. |
+| --- | --- |
+| `loadParameters(param_file)` | Loads `items` and `interfaces` from YAML and fills driver entry tables. |
+| `isEnabled(data, driver_state, out)` | Advances the CiA402 state machine from `Fault` through `OperationEnabled`. |
+| `isDisabled(data, driver_state, out)` | Writes the current disable command until `SwitchOnDisabled` is reached. |
+| `isReceived(data, out)` | When set-point acknowledge is present, writes `0x000F` to `out` and returns `true`. |
+| `position(int32_t)` / `position(double)` | Converts encoder counts to radians and radians to counts. |
+| `velocity(int32_t)` / `velocity(double)` | Converts count-based velocity to rad/s and rad/s to counts. |
+| `torque(int16_t)` / `torque(double)` | Converts raw torque to Nm and Nm to raw torque. |
 
-## Namespace constants (`minas`, header)
+## Controlword values
 
-Semantic IDs for MINAS-specific YAML `items` / `interfaces` entries (see `loadParameters`):
+The implementation uses MINAS-specific controlword constants internally:
 
-| Name | Value | Role in `loadParameters` |
-|------|-------|---------------------------|
-| `ID_MAX_TORQUE` | 50 | Fills max torque SDO from `unit_torque`. |
-| `ID_MIN_POSITION_LIMIT` | 51 | Lower position limit from `config_.lower` (rad → counts). |
-| `ID_MAX_POSITION_LIMIT` | 52 | Upper limit from `config_.upper`. |
-| `ID_MAX_MOTOR_SPEED` | 53 | From `config_.speed`. |
-| `ID_PROFILE_VELOCITY` | 54 | From `profile_velocity` (rad/s → counts). |
-| `ID_PROFILE_ACCELERATION` | 55 | From `profile_acceleration`. |
-| `ID_PROFILE_DECELERATION` | 56 | From `profile_deceleration`. |
-| `ID_MAX_ACCELERATION` | 57 | From `acceleration`. |
-| `ID_MAX_DECELERATION` | 58 | From `deceleration`. |
-| `ID_RXPDO` | 98 | Marks RX PDO container row in `interfaces` (no subindex/size in loop). |
-| `ID_TXPDO` | 99 | Marks TX PDO container row. |
-
-## File-local symbols (`src/minas_driver.cpp`)
-
-Anonymous namespace — not part of the public API:
-
-| Symbol | Description |
-|--------|-------------|
-| `CW_SHUTDOWN`, `CW_SWITCH_ON`, `CW_ENABLE_OPERATION`, `CW_DISABLE_VOLTAGE`, `CW_DISABLE_OPERATION`, `CW_FAULT_RESET` | Controlword bit patterns for MINAS CiA402 transitions (values differ from ZeroErr). |
-| `isFault`, `isReadyToSwitchOn`, `isSwitchedOn`, `isOperationEnabled`, `isSwitchOnDisabled`, `isSetpointAcknowledge` | Statusword predicates shared by `isEnabled` / `isDisabled` / `isReceived`. |
+| Name | Value |
+| --- | --- |
+| `CW_SHUTDOWN` | `0x0006` |
+| `CW_SWITCH_ON` | `0x0007` |
+| `CW_ENABLE_OPERATION` | `0x000F` |
+| `CW_DISABLE_VOLTAGE` | `0x0000` |
+| `CW_DISABLE_OPERATION` | `0x0007` |
+| `CW_FAULT_RESET` | `0x0080` |
