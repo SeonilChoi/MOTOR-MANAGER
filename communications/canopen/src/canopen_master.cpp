@@ -11,6 +11,23 @@
 
 #include "canopen/canopen_master.hpp"
 
+namespace {
+
+constexpr uint64_t SDO_TIMEOUT_NS = 1000000000ULL; // 1 second
+
+uint64_t nowNs()
+{
+    timespec t{};
+    if (::clock_gettime(CLOCK_MONOTONIC, &t) != 0) {
+        throw std::runtime_error("clock_gettime failed.");
+    }
+
+    return static_cast<uint64_t>(t.tv_sec) * 1000000000ULL +
+            static_cast<uint64_t>(t.tv_nsec);
+}   
+    
+} // namespace
+
 void canopen::CanopenMaster::initialize()
 {
     socket_ = ::socket(PF_CAN, SOCK_RAW | SOCK_NONBLOCK, CAN_RAW);
@@ -62,7 +79,8 @@ void canopen::CanopenMaster::activate()
 
 void canopen::CanopenMaster::deactivate()
 {
-    sendNmt(canopen::NMT_STOP, 0x00);
+    // Debug: Disable NMT STOP
+    //sendNmt(canopen::NMT_STOP, 0x00);
 
     if (socket_ >= 0) {
         ::close(socket_);
@@ -162,7 +180,9 @@ bool canopen::CanopenMaster::writeSdo(uint8_t node_id, uint16_t index, uint8_t s
     sendFrame(req);
 
     can_frame res {};
-    while (true) {
+    const uint64_t deadline = nowNs() + SDO_TIMEOUT_NS;
+
+    while (nowNs() < deadline) {
         if (!receiveFrame(res)) {
             if (errno == EAGAIN || errno == EWOULDBLOCK) continue;
             return false;
@@ -178,6 +198,8 @@ bool canopen::CanopenMaster::writeSdo(uint8_t node_id, uint16_t index, uint8_t s
                res.data[2] == req.data[2] &&
                res.data[3] == req.data[3];
     }
+
+    return false;
 }
 
 bool canopen::CanopenMaster::readSdo(uint8_t node_id, uint16_t index, uint8_t subindex, uint8_t* data, uint8_t size)
@@ -193,7 +215,9 @@ bool canopen::CanopenMaster::readSdo(uint8_t node_id, uint16_t index, uint8_t su
     sendFrame(req);
 
     can_frame res {};
-    while (true) {
+    const uint64_t deadline = nowNs() + SDO_TIMEOUT_NS;
+
+    while (nowNs() < deadline) {
         if (!receiveFrame(res)) {
             if (errno == EAGAIN || errno == EWOULDBLOCK) continue;
             return false;
@@ -211,6 +235,8 @@ bool canopen::CanopenMaster::readSdo(uint8_t node_id, uint16_t index, uint8_t su
         std::memcpy(data, &res.data[4], size);
         return true;
     }
+
+    return false;
 }
 
 void canopen::CanopenMaster::sendNmt(uint8_t command, uint8_t node_id)

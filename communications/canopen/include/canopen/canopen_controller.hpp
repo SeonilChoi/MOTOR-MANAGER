@@ -6,6 +6,14 @@
 
 namespace canopen {
 
+enum class SetPointState {
+    Idle,
+    SendSet,
+    WaitAck,
+    SendClear,
+    WaitAckClear,
+};
+
 class CanopenController : public motor_interface::MotorController {
 public:
     explicit CanopenController(const motor_interface::slave_config_t& config)
@@ -54,6 +62,14 @@ private:
     uint8_t rpdo_size_{0};
 
     uint8_t tpdo_size_{0};
+
+    SetPointState set_point_state_{SetPointState::Idle};
+
+    uint8_t pending_rpdo_[16]{0};
+
+    uint8_t pending_rpdo_size_{0};
+
+    bool has_pending_setpoint_{false};
 };
 
 } // namespace canopen

@@ -161,8 +161,6 @@ void motor_manager::MotorManager::initialize()
         uint8_t d_id = controllers_[i]->driver_id();
         controllers_[i]->initialize(*masters_.at(m_id), *drivers_.at(d_id));
     }
-
-    for (auto& m_iter : masters_) m_iter.second->activate();
 }
 
 void motor_manager::MotorManager::enable()
@@ -315,8 +313,6 @@ void motor_manager::MotorManager::run()
 
         for (auto& m_iter : masters_) m_iter.second->transmit();
     }
-
-    for (auto& m_iter : masters_) m_iter.second->deactivate();
 
     unlock_memory();
     stop();

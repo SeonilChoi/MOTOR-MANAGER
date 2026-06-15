@@ -16,6 +16,19 @@ mkdir motor_manager
 git clone https://github.com/SeonilChoi/MOTOR-MANAGER.git ./motor_manager
 ```
 
+## Setup
+
+#### EtherCAT
+```bash ethercat
+sudo ethercatctl restart
+sudo chmod 777 /dev/EtherCAT0
+```
+
+#### CANopen
+```bash canopen
+sudo slcand -o -c -s8 /dev/CANable can0
+sudo ip link set can0 up
+```
 
 ## Repository layout
 

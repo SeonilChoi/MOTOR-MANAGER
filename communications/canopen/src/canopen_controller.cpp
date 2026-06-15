@@ -2,6 +2,8 @@
 #include <cstring>
 #include <stdexcept>
 
+#include <iostream>
+
 #include "canopen/canopen_controller.hpp"
 
 void canopen::CanopenController::initialize(motor_interface::MotorMaster& master, motor_interface::MotorDriver& driver)
@@ -60,14 +62,51 @@ bool canopen::CanopenController::disable()
 
 void canopen::CanopenController::check(const motor_interface::motor_frame_t& status)
 {
-    uint8_t sw_data[2]{0};
-    motor_interface::fill<uint16_t>(status.statusword, sw_data);
+    const bool ack = (status.statusword & 0x1000) != 0;
 
-    uint8_t cw_data[2]{0};
-    if (driver_->isReceived(sw_data, cw_data)) {
-        std::memcpy(node_->rpdo + offset_[motor_interface::ID_CONTROLWORD], cw_data, sizeof(cw_data));
+    switch (set_point_state_) {
+    case canopen::SetPointState::Idle: {
+        return;
+    }
 
-        node_->rpdo_dirty = true;
+    case canopen::SetPointState::SendSet: {
+        if (has_pending_setpoint_) {
+            std::memcpy(node_->rpdo, pending_rpdo_, pending_rpdo_size_);
+            node_->rpdo_size = pending_rpdo_size_;
+            node_->rpdo_dirty = true;
+
+            has_pending_setpoint_ = false;
+            set_point_state_ = canopen::SetPointState::WaitAck;
+        }
+        return;
+    }
+
+    case canopen::SetPointState::WaitAck: {
+        if (ack) {
+            uint8_t cw_data[2]{};
+            motor_interface::fill<uint16_t>(0x102F, cw_data);
+
+            std::memcpy(
+                node_->rpdo + offset_[motor_interface::ID_CONTROLWORD],
+                cw_data,
+                sizeof(cw_data));
+
+            node_->rpdo_dirty = true;
+            set_point_state_ = canopen::SetPointState::WaitAckClear;
+        }
+        return;
+    }
+
+    case canopen::SetPointState::WaitAckClear: {
+        if (!ack) {
+            set_point_state_ = canopen::SetPointState::Idle;
+        }
+        return;
+    }
+
+    default:
+        set_point_state_ = canopen::SetPointState::Idle;
+        return;
     }
 }
 
@@ -105,6 +144,26 @@ void canopen::CanopenController::write(const motor_interface::motor_frame_t& com
     }
 
     writeData(rx_interfaces, n_rx);
+
+    if ((command.controlword & 0x0010) != 0) {
+        std::memcpy(pending_rpdo_, node_->rpdo, node_->rpdo_size);
+        pending_rpdo_size_ = node_->rpdo_size;
+        has_pending_setpoint_ = true;
+    
+        uint16_t cw_clear =
+            static_cast<uint16_t>(command.controlword & ~0x0010);
+    
+        uint8_t cw_data[2]{};
+        motor_interface::fill<uint16_t>(cw_clear, cw_data);
+    
+        std::memcpy(
+            node_->rpdo + offset_[motor_interface::ID_CONTROLWORD],
+            cw_data,
+            sizeof(cw_data));
+    
+        node_->rpdo_dirty = true;
+        set_point_state_ = canopen::SetPointState::SendSet;
+    }
 }
 
 void canopen::CanopenController::read(motor_interface::motor_frame_t& status)
@@ -146,9 +205,9 @@ void canopen::CanopenController::writeData(const motor_interface::entry_table_t*
 void canopen::CanopenController::readData(motor_interface::entry_table_t* tx_interfaces, uint8_t number_of_tx_interfaces)
 {
     for (uint8_t i = 0; i < number_of_tx_interfaces; ++i) {
-        const motor_interface::entry_table_t& e = tx_interfaces[i];
+        motor_interface::entry_table_t& e = tx_interfaces[i];
 
-        std::memcpy(node_->tpdo + offset_[e.id], e.data, e.size);
+        std::memcpy(e.data, node_->tpdo + offset_[e.id], e.size);
     }
 
     node_->tpdo_updated = false;
@@ -192,8 +251,49 @@ void canopen::CanopenController::addSlaveConfigPdos()
     const uint8_t num_rx_interfaces = driver_->number_of_rx_interfaces();
     const uint8_t num_tx_interfaces = driver_->number_of_tx_interfaces();
 
-    uint8_t rpdo_offset = 0;
-    uint8_t tpdo_offset = 0;
+    uint8_t rpdo1_count = 0;
+    uint8_t rpdo2_count = 0;
+    uint8_t tpdo1_count = 0;
+    uint8_t tpdo2_count = 0;
+
+    uint8_t tpdo1_size = 0;
+    uint8_t tpdo2_size = 0;
+    uint8_t rpdo1_size = 0;
+    uint8_t rpdo2_size = 0;
+
+    auto write_u8 = [&](uint16_t index, uint8_t subindex, uint8_t value) {
+        uint8_t data[1]{};
+        motor_interface::fill<uint8_t>(value, data);
+        master_->writeSdo(node_id_, index, subindex, data, 1);
+    };
+
+    auto write_u16 = [&](uint16_t index, uint8_t subindex, uint16_t value) {
+        uint8_t data[2]{};
+        motor_interface::fill<uint16_t>(value, data);
+        master_->writeSdo(node_id_, index, subindex, data, 2);
+    };
+
+    auto write_u32 = [&](uint16_t index, uint8_t subindex, uint32_t value) {
+        uint8_t data[4]{};
+        motor_interface::fill<uint32_t>(value, data);
+        master_->writeSdo(node_id_, index, subindex, data, 4);
+    };
+
+    auto map_value = [](const motor_interface::entry_table_t& e) -> uint32_t {
+        return (static_cast<uint32_t>(e.index) << 16) |
+               (static_cast<uint32_t>(e.subindex) << 8) |
+               (static_cast<uint32_t>(e.size) * 8);
+    };
+
+    write_u32(0x1400, 0x01, 0x80000000u | (canopen::COB_RPDO1_BASE + node_id_));
+    write_u32(0x1401, 0x01, 0x80000000u | (canopen::COB_RPDO2_BASE + node_id_));
+    write_u32(0x1800, 0x01, 0x80000000u | (canopen::COB_TPDO1_BASE + node_id_));
+    write_u32(0x1801, 0x01, 0x80000000u | (canopen::COB_TPDO2_BASE + node_id_));
+
+    write_u8(0x1600, 0x00, 0);
+    write_u8(0x1601, 0x00, 0);
+    write_u8(0x1A00, 0x00, 0);
+    write_u8(0x1A01, 0x00, 0);
 
     for (uint8_t i = 0; i < num_rx_interfaces; ++i) {
         const motor_interface::entry_table_t& e = interfaces[i + 1];
@@ -212,19 +312,29 @@ void canopen::CanopenController::addSlaveConfigPdos()
             }
         }
 
-        if (rpdo_offset + e.size > 16) throw std::runtime_error("RPDO size exceeds 16 bytes.");
+        const uint32_t map = map_value(e);
 
-        offset_[e.id] = rpdo_offset;
-        rpdo_offset += e.size;
+        if (rpdo1_size + e.size <= 8) {
+            offset_[e.id] = rpdo1_size;
+
+            ++rpdo1_count;
+            write_u32(0x1600, rpdo1_count, map);
+
+            rpdo1_size += e.size;
+        } else {
+            if (rpdo2_size + e.size > 8) throw std::runtime_error("RPDO2 size exceeds 8 bytes.");
+
+            offset_[e.id] = 8 + rpdo2_size;
+
+            ++rpdo2_count;
+            write_u32(0x1601, rpdo2_count, map);
+
+            rpdo2_size += e.size;
+        }
     }
 
     for (uint8_t i = 0; i < num_tx_interfaces; ++i) {
         const motor_interface::entry_table_t& e = interfaces[i + num_rx_interfaces + 2];
-
-        if (tpdo_offset + e.size > 16) throw std::runtime_error("TPDO size exceeds 16 bytes.");
-
-        offset_[e.id] = tpdo_offset;
-        tpdo_offset += e.size;
 
         tx_interfaces_[i] = motor_interface::entry_table_t{
             e.id,
@@ -234,10 +344,50 @@ void canopen::CanopenController::addSlaveConfigPdos()
             e.size,
             {0}
         };
+
+        const uint32_t map = map_value(e);
+
+        if (tpdo1_size + e.size <= 8) {
+            offset_[e.id] = tpdo1_size;
+
+            ++tpdo1_count;
+            write_u32(0x1A00, tpdo1_count, map);
+
+            tpdo1_size += e.size;
+        } else {
+            if (tpdo2_size + e.size > 8) throw std::runtime_error("TPDO2 size exceeds 8 bytes.");
+
+            offset_[e.id] = 8 + tpdo2_size;
+            
+            ++tpdo2_count;
+            write_u32(0x1A01, tpdo2_count, map);
+
+            tpdo2_size += e.size;
+        }
     }
 
-    rpdo_size_ = rpdo_offset;
-    tpdo_size_ = tpdo_offset;
+    write_u8(0x1600, 0x00, rpdo1_count);
+    write_u8(0x1601, 0x00, rpdo2_count);
+    write_u8(0x1A00, 0x00, tpdo1_count);
+    write_u8(0x1A01, 0x00, tpdo2_count);
+
+    write_u8(0x1400, 0x02, 255);
+    write_u8(0x1401, 0x02, 255);
+
+    write_u8(0x1800, 0x02, 254);
+    write_u8(0x1801, 0x02, 254);
+
+    write_u16(0x1800, 0x05, 1);
+    write_u16(0x1801, 0x05, 1);
+
+    write_u32(0x1400, 0x001, canopen::COB_RPDO1_BASE + node_id_);
+    if (rpdo2_count > 0) write_u32(0x1401, 0x01, canopen::COB_RPDO2_BASE + node_id_);
+
+    write_u32(0x1800, 0x001, canopen::COB_TPDO1_BASE + node_id_);
+    if (tpdo2_count > 0) write_u32(0x1801, 0x01, canopen::COB_TPDO2_BASE + node_id_);
+
+    rpdo_size_ = rpdo1_size + rpdo2_size;
+    tpdo_size_ = tpdo1_size + tpdo2_size;
 
     node_->rpdo_size = rpdo_size_;
     node_->tpdo_size = tpdo_size_;

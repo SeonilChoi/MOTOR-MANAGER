@@ -180,8 +180,25 @@ bool zeroerr::ZeroerrDriver::isEnabled(const uint8_t* data, motor_interface::Dri
 
     switch (driver_state) {
     case motor_interface::DriverState::Fault: {
-        cw = CW_FAULT_RESET;
-        if (isSwitchOnDisabled(sw)) driver_state = motor_interface::DriverState::SwitchOnDisabled;
+        //cw = CW_FAULT_RESET;
+        //if (isSwitchOnDisabled(sw)) driver_state = motor_interface::DriverState::SwitchOnDisabled;
+        if (isFault(sw)) {
+            cw = CW_FAULT_RESET;
+        } else if (isSwitchOnDisabled(sw)) {
+            driver_state = motor_interface::DriverState::SwitchOnDisabled;
+            cw = CW_SHUTDOWN;
+        } else if (isReadyToSwitchOn(sw)) {
+            driver_state = motor_interface::DriverState::ReadyToSwitchOn;
+            cw = CW_SWITCH_ON;
+        } else if (isSwitchedOn(sw)) {
+            driver_state = motor_interface::DriverState::SwitchedOn;
+            cw = CW_ENABLE_OPERATION;
+        } else if (isOperationEnabled(sw)) {
+            driver_state = motor_interface::DriverState::OperationEnabled;
+            return true;
+        } else {
+            cw = CW_SHUTDOWN;
+        }
         break;
     } case motor_interface::DriverState::SwitchOnDisabled: {
         cw = CW_SHUTDOWN;
@@ -250,7 +267,7 @@ bool zeroerr::ZeroerrDriver::isReceived(const uint8_t* data, uint8_t* out)
 {
     uint16_t sw = motor_interface::value<uint16_t>(data);
     if (isSetpointAcknowledge(sw)) {
-        motor_interface::fill<uint16_t>(0x0F, out);
+        motor_interface::fill<uint16_t>(0x102F, out);
         return true;
     }
     return false;
