@@ -15,8 +15,12 @@ This repository is built as one ROS 2 package named `motor_manager`.
 | `core/motor_interface` | `motor_interface` | Common `MotorMaster`, `MotorController`, and `MotorDriver` abstractions. |
 | `communications/ethercat` | `ethercat` | IgH EtherCAT master/controller implementation. |
 | `communications/canopen` | `canopen` | SocketCAN CANopen master/controller implementation. |
+| `communications/serial` | `serial` | Dynamixel Protocol 2.0 serial master/controller implementation. |
+| `communications/socketcan` | `socketcan` | Raw SocketCAN master/controller implementation. |
 | `hardware/minas` | `minas` | Panasonic MINAS CiA402 driver mapping. |
 | `hardware/zeroerr` | `zeroerr` | ZeroErr CiA402 driver mapping. |
+| `hardware/dynamixel` | `dynamixel` | Dynamixel driver mapping. |
+| `hardware/cubemars` | `cubemars` | CubeMars driver mapping. |
 | `motor_manager` | `motor_manager` | YAML configuration loader and cyclic runtime loop. |
 
 ## Build
@@ -67,6 +71,9 @@ The current CANopen implementation binds to `can<can_interface_index>` from the 
 ## Configuration
 
 `MotorManager` loads one YAML file. The top-level keys are `period`, `masters`, and `drivers`.
+EtherCAT, CANopen, and SocketCAN masters run in the real-time loop. Serial
+masters run in separate worker threads so blocking Dynamixel traffic does not
+delay the EtherCAT cycle.
 
 ```yaml
 period: 1000000
@@ -111,7 +118,7 @@ drivers:
 | `1` | Profile velocity |
 | `2` | Profile torque |
 
-For each driver, `param_file` points to a directory. The driver loads `<param_file>/<type>.yaml`, resolved relative to the main config file when the path is not absolute.
+For each driver, `param_file` can point to a YAML file or to a directory. YAML files are loaded directly; directories load `<param_file>/<type>.yaml`. Relative paths are resolved from the main config file.
 
 Examples in this workspace:
 
@@ -128,15 +135,20 @@ motor_manager::MotorManager manager(config_file);
 manager.run();
 ```
 
-The cyclic loop:
+The real-time cyclic loop:
 
 1. Activates every master.
-2. Locks memory and requests `SCHED_FIFO`.
-3. Sleeps at the configured nanosecond `period`.
-4. Receives bus data.
-5. Enables drives, applies command updates, or disables drives when requested.
-6. Syncs clocks where supported.
-7. Transmits bus data.
+2. Starts serial worker threads for serial masters.
+3. Locks memory and requests `SCHED_FIFO`.
+4. Sleeps at the configured nanosecond `period`.
+5. Receives non-serial bus data.
+6. Enables drives, applies command updates, or disables drives when requested.
+7. Syncs clocks where supported.
+8. Transmits non-serial bus data.
+
+For serial masters, `serial_timeout_ms` is used for startup register reads and
+writes, while optional `serial_runtime_timeout_ms` limits each cyclic bulk-read
+wait.
 
 Commands and status use `motor_interface::motor_frame_t` from `common_motor_interface`.
 

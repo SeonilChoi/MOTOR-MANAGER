@@ -10,8 +10,12 @@ target_link_libraries(motor_manager
   PUBLIC  "${MOTOR_MANAGER_IGH_ETHERCAT_LIB}"
   PRIVATE ethercat::ethercat
   PRIVATE canopen::canopen
+  PRIVATE serial::serial
+  PRIVATE socketcan::socketcan
   PRIVATE minas::minas
   PRIVATE zeroerr::zeroerr
+  PRIVATE dynamixel::dynamixel
+  PRIVATE cubemars::cubemars
   PRIVATE yaml-cpp
 )
 

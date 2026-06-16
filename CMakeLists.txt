@@ -26,19 +26,27 @@ endif()
 add_subdirectory(core/motor_interface)
 add_subdirectory(communications/ethercat)
 add_subdirectory(communications/canopen)
+add_subdirectory(communications/serial)
+add_subdirectory(communications/socketcan)
 add_subdirectory(hardware/minas)
 add_subdirectory(hardware/zeroerr)
+add_subdirectory(hardware/dynamixel)
+add_subdirectory(hardware/cubemars)
 add_subdirectory(motor_manager)
 
 install(DIRECTORY core/motor_interface/include/ DESTINATION include)
 install(DIRECTORY communications/ethercat/include/ DESTINATION include)
 install(DIRECTORY communications/canopen/include/ DESTINATION include)
+install(DIRECTORY communications/serial/include/ DESTINATION include)
+install(DIRECTORY communications/socketcan/include/ DESTINATION include)
 install(DIRECTORY hardware/minas/include/ DESTINATION include)
 install(DIRECTORY hardware/zeroerr/include/ DESTINATION include)
+install(DIRECTORY hardware/dynamixel/include/ DESTINATION include)
+install(DIRECTORY hardware/cubemars/include/ DESTINATION include)
 install(DIRECTORY motor_manager/include/ DESTINATION include)
 
 install(
-  TARGETS motor_manager ethercat canopen minas motor_interface zeroerr
+  TARGETS motor_manager ethercat canopen serial socketcan minas motor_interface zeroerr dynamixel cubemars
   EXPORT export_${PROJECT_NAME}
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib

@@ -47,7 +47,7 @@ flowchart LR
   K --> C
 ```
 
-`update()` reads every controller, runs each controller's set-point check, stops command output if any status frame has a nonzero `errorcode`, and writes new commands only when `write()` has marked the command buffer changed.
+The controller update path reads every controller, runs each controller's set-point check, stops command output if any status frame has a nonzero `errorcode`, and writes new commands only when `write()` has provided a newer command frame.
 
 ## Configuration schema
 
@@ -58,6 +58,11 @@ Top-level keys:
 | `period` | Cycle period in nanoseconds. |
 | `masters` | List of fieldbus masters and their slaves/nodes. |
 | `drivers` | List of vendor driver configs. |
+
+EtherCAT, CANopen, and SocketCAN masters run in the real-time loop. Serial
+masters run in separate worker threads so blocking Dynamixel traffic does not
+delay the EtherCAT cycle. Serial masters also accept `serial_runtime_timeout_ms`
+to cap the cyclic bulk-read wait separately from startup `serial_timeout_ms`.
 
 ### EtherCAT master
 
@@ -120,22 +125,24 @@ Supported values in the current code:
 
 | Field | Supported values |
 | --- | --- |
-| `masters[].type` | `ethercat`, `canopen` |
-| `drivers[].type` | `minas`, `zeroerr` |
+| `masters[].type` | `ethercat`, `canopen`, `socketcan`, `serial`, `dynamixel` |
+| `drivers[].type` | `minas`, `zeroerr`, `dynamixel`, `cubemars` |
 | `profile_mode` | `0`: position, `1`: velocity, `2`: torque |
 
-`param_file` points to a directory. The loaded file is `<param_file>/<type>.yaml`, resolved relative to the main config file when the path is not absolute.
+`param_file` can point to a YAML file or to a directory. YAML files are loaded directly; directories load `<param_file>/<type>.yaml`. Relative paths are resolved from the main config file.
 
 ## Threading
 
-`write()`, `read()`, and the loop-side `update()` share `command_` and `status_` through `frame_mutex_`.
+`write()` and `read()` share `command_` and `status_` through `frame_mutex_`. The real-time loop and serial workers copy command/status snapshots under that mutex, then perform controller and bus work outside the lock.
 
 ```mermaid
 flowchart TB
   W[write] -->|lock| BUF[command/status buffers]
   R[read] -->|lock| BUF
-  U[update in run] -->|lock| BUF
-  U --> BUS[controller read/check/write]
+  RT[real-time loop] -->|short lock| BUF
+  SER[serial worker] -->|short lock| BUF
+  RT --> FIELDBUS[EtherCAT/CANopen/SocketCAN]
+  SER --> DXL[Dynamixel serial]
 ```
 
 `request_stop()` and `request_exit()` use atomics and can be called from another thread.

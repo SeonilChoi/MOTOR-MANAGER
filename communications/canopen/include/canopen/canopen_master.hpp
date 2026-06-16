@@ -8,8 +8,6 @@
 
 namespace canopen {
 
-inline constexpr uint16_t MAX_CAN_FRAME_QUEUE_SIZE = 1024;
-
 inline constexpr uint16_t COB_NMT        = 0x000;
 
 inline constexpr uint16_t COB_TPDO1_BASE = 0x180;
@@ -35,10 +33,13 @@ inline constexpr uint8_t SDO_ABORT       = 0x80;
 
 struct canopen_node_data_t {
     uint8_t node_id{0};
+    
     uint8_t rpdo[16]{0}; // RPDO1 8 bytes, RPDO2 8 bytes
     uint8_t tpdo[16]{0}; // TPDO1 8 bytes, TPDO2 8 bytes
+    
     uint8_t rpdo_size{8};
     uint8_t tpdo_size{0};
+    
     bool tpdo_updated{false};
     bool rpdo_dirty{false};
 };
