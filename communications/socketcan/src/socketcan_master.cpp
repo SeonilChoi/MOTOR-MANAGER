@@ -29,8 +29,13 @@ void socketcan::SocketcanMaster::initialize()
         throw std::runtime_error("Failed to set SocketCAN socket flags.");
     }
 
-    const int loopback = 0;
+    const int loopback = 1;
     (void)::setsockopt(socket_, SOL_CAN_RAW, CAN_RAW_LOOPBACK, &loopback, sizeof(loopback));
+
+    const int receive_own_messages = 0;
+    (void)::setsockopt(
+        socket_, SOL_CAN_RAW, CAN_RAW_RECV_OWN_MSGS,
+        &receive_own_messages, sizeof(receive_own_messages));
 
     const std::string interface_name = "can" + std::to_string(interface_index_);
 

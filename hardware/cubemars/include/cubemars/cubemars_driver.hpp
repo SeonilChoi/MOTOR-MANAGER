@@ -95,6 +95,12 @@ private:
     double default_kp_{0.0};
 
     double default_kd_{0.0};
+
+    double servo_position_scale_{0.0003834951969714103};
+
+    double servo_velocity_scale_{0.001};
+
+    double servo_current_scale_{0.01};
 };
 
 } // namespace cubemars

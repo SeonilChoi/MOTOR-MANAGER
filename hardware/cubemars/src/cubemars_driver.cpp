@@ -57,6 +57,33 @@ void setFrameBytes(motor_interface::socketcan_frame_t& frame, const uint8_t (&by
     std::memcpy(frame.data, bytes, sizeof(bytes));
 }
 
+constexpr uint32_t CUBEMARS_EXTENDED_STATUS_BASE = 0x2900;
+
+bool isExtendedServoStatusFrame(uint8_t node_id, const motor_interface::socketcan_frame_t& frame)
+{
+    return frame.can_dlc >= 8 &&
+           frame.can_id == CUBEMARS_EXTENDED_STATUS_BASE + static_cast<uint32_t>(node_id);
+}
+
+int16_t readBeI16(uint8_t high, uint8_t low)
+{
+    return static_cast<int16_t>(
+        static_cast<uint16_t>(static_cast<uint16_t>(high) << 8) |
+        static_cast<uint16_t>(low));
+}
+
+double clampRange(double value, double lower, double upper)
+{
+    if (upper < lower) std::swap(lower, upper);
+    return std::clamp(value, lower, upper);
+}
+
+double clampAbs(double value, double limit)
+{
+    if (limit <= 0.0) return value;
+    return std::clamp(value, -limit, limit);
+}
+
 } // namespace
 
 cubemars::CubemarsDriver::CubemarsDriver(const motor_interface::driver_config_t& config)
@@ -82,6 +109,9 @@ void cubemars::CubemarsDriver::loadParameters(const std::string& param_file)
     if (root["kd_min"]) params_.kd_min = root["kd_min"].as<double>();
     if (root["kd_max"]) params_.kd_max = root["kd_max"].as<double>();
     if (root["axis_direction"]) params_.axis_direction = root["axis_direction"].as<int>();
+    if (root["servo_position_scale"]) servo_position_scale_ = root["servo_position_scale"].as<double>();
+    if (root["servo_velocity_scale"]) servo_velocity_scale_ = root["servo_velocity_scale"].as<double>();
+    if (root["servo_current_scale"]) servo_current_scale_ = root["servo_current_scale"].as<double>();
 
     default_kp_ = root["kp"] ? root["kp"].as<double>() :
         (root["default_kp"] ? root["default_kp"].as<double>() : 0.0);
@@ -224,9 +254,13 @@ bool cubemars::CubemarsDriver::encodeSocketcanCommand(
         targetRequested(command, motor_interface::ID_TARGET_TORQUE);
 
     const double direction = static_cast<double>(params_.axis_direction);
-    const double p_des = use_position ? command.position * direction : 0.0;
-    const double v_des = use_velocity ? command.velocity * direction : 0.0;
-    const double tau_ff = use_torque ? command.torque * direction : 0.0;
+    const double position = use_position ?
+        clampRange(command.position, config_.lower, config_.upper) : 0.0;
+    const double velocity = use_velocity ? clampAbs(command.velocity, config_.speed) : 0.0;
+    const double torque = use_torque ? clampAbs(command.torque, config_.rated_torque) : 0.0;
+    const double p_des = position * direction;
+    const double v_des = velocity * direction;
+    const double tau_ff = torque * direction;
     const double kp = rxFieldEnabled(motor_interface::ID_TARGET_KP) && use_position ?
         default_kp_ : 0.0;
     const double kd = rxFieldEnabled(motor_interface::ID_TARGET_KD) && (use_position || use_velocity) ?
@@ -257,8 +291,9 @@ bool cubemars::CubemarsDriver::acceptsSocketcanStatusFrame(
     uint8_t node_id,
     const motor_interface::socketcan_frame_t& frame) const
 {
-    return frame.can_dlc >= 6 &&
-           (frame.data[0] == node_id || frame.can_id == node_id);
+    if (isExtendedServoStatusFrame(node_id, frame)) return true;
+
+    return frame.can_dlc >= 6 && frame.data[0] == node_id;
 }
 
 bool cubemars::CubemarsDriver::decodeSocketcanStatus(
@@ -267,6 +302,27 @@ bool cubemars::CubemarsDriver::decodeSocketcanStatus(
     motor_interface::motor_frame_t& status) const
 {
     if (!acceptsSocketcanStatusFrame(node_id, frame)) return false;
+
+    if (isExtendedServoStatusFrame(node_id, frame)) {
+        const int16_t p_int = readBeI16(frame.data[0], frame.data[1]);
+        const int16_t v_int = readBeI16(frame.data[2], frame.data[3]);
+        const int16_t i_int = readBeI16(frame.data[4], frame.data[5]);
+        const double direction = static_cast<double>(params_.axis_direction);
+
+        if (txFieldEnabled(motor_interface::ID_CURRENT_POSITION)) {
+            status.position = static_cast<double>(p_int) * servo_position_scale_ * direction;
+        }
+        if (txFieldEnabled(motor_interface::ID_CURRENT_VELOCITY)) {
+            status.velocity = static_cast<double>(v_int) * servo_velocity_scale_ * direction;
+        }
+        if (txFieldEnabled(motor_interface::ID_CURRENT_TORQUE)) {
+            status.torque = static_cast<double>(i_int) * servo_current_scale_ * direction;
+        }
+
+        status.statusword = 1;
+        status.errorcode = frame.data[7];
+        return true;
+    }
 
     const int p_int = (static_cast<int>(frame.data[1]) << 8) |
                       static_cast<int>(frame.data[2]);
@@ -309,6 +365,13 @@ void cubemars::CubemarsDriver::applyMotorTypeDefaults(const std::string& motor_t
         params_ = mit_params_t{-12.5, 12.5, -50.0, 50.0, -65.0, 65.0, 0.0, 500.0, 0.0, 5.0, 1};
     } else if (motor_type == "AK60_6_V2p2") {
         params_ = mit_params_t{-12.5, 12.5, -45.0, 45.0, -15.0, 15.0, 0.0, 500.0, 0.0, 5.0, 1};
+    } else if (motor_type == "AK45_36_KV80" ||
+               motor_type == "AK45-36_KV80" ||
+               motor_type == "AK45-36-KV80" ||
+               motor_type == "AK45_36" ||
+               motor_type == "AK45-36")
+    {
+        params_ = mit_params_t{-12.5, 12.5, -22.5, 22.5, -12.0, 12.0, 0.0, 500.0, 0.0, 5.0, -1};
     } else if (motor_type == "AK10_30" || motor_type == "AK10_30_cubemars") {
         params_ = mit_params_t{-12.5, 12.5, -45.0, 45.0, -18.0, 18.0, 0.0, 500.0, 0.0, 5.0, 1};
     } else {

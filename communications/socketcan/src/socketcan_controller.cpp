@@ -41,7 +41,7 @@ bool socketcan::SocketcanController::enable()
     }
 
     current_driver_state_ = motor_interface::DriverState::OperationEnabled;
-    return false;
+    return true;
 }
 
 bool socketcan::SocketcanController::disable()
@@ -54,18 +54,35 @@ bool socketcan::SocketcanController::disable()
     }
 
     current_driver_state_ = motor_interface::DriverState::SwitchOnDisabled;
-    return false;
+    return true;
 }
 
 void socketcan::SocketcanController::check(const motor_interface::motor_frame_t& status)
 {
     (void)status;
+
+    if (current_driver_state_ != motor_interface::DriverState::OperationEnabled) return;
+
+    if (has_last_command_) {
+        sendCommandFrame(last_command_);
+    } else {
+        motor_interface::motor_frame_t poll{};
+        poll.controller_index = index_;
+        sendCommandFrame(poll);
+    }
 }
 
 void socketcan::SocketcanController::write(const motor_interface::motor_frame_t& command)
 {
     if (command.number_of_target_interfaces == 0) return;
 
+    last_command_ = command;
+    has_last_command_ = true;
+    sendCommandFrame(last_command_);
+}
+
+void socketcan::SocketcanController::sendCommandFrame(const motor_interface::motor_frame_t& command)
+{
     motor_interface::socketcan_frame_t frame{};
     if (!driver_->encodeSocketcanCommand(node_id_, command, frame)) {
         throw std::runtime_error("Failed to encode SocketCAN command frame.");

@@ -33,6 +33,8 @@ private:
 
     void readData(motor_interface::entry_table_t* tx_interfaces, uint8_t number_of_tx_interfaces) override;
 
+    void sendCommandFrame(const motor_interface::motor_frame_t& command);
+
     void enqueueDriverFrame(const motor_interface::socketcan_frame_t& frame);
 
     motor_interface::socketcan_frame_t toDriverFrame(const can_frame& frame) const;
@@ -42,6 +44,10 @@ private:
     socketcan_node_data_t* node_{nullptr};
 
     motor_interface::motor_frame_t status_cache_{};
+
+    motor_interface::motor_frame_t last_command_{};
+
+    bool has_last_command_{false};
 
     uint8_t node_id_{0};
 };
