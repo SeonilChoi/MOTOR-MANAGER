@@ -5,6 +5,12 @@
 
 #include "socketcan/socketcan_controller.hpp"
 
+namespace {
+
+constexpr auto kPeriodicCommandInterval = std::chrono::milliseconds(5);
+
+}  // namespace
+
 void socketcan::SocketcanController::initialize(
     motor_interface::MotorMaster& master,
     motor_interface::MotorDriver& driver)
@@ -63,6 +69,9 @@ void socketcan::SocketcanController::check(const motor_interface::motor_frame_t&
 
     if (current_driver_state_ != motor_interface::DriverState::OperationEnabled) return;
 
+    const auto now = std::chrono::steady_clock::now();
+    if (now < next_periodic_send_) return;
+
     if (has_last_command_) {
         sendCommandFrame(last_command_);
     } else {
@@ -70,6 +79,7 @@ void socketcan::SocketcanController::check(const motor_interface::motor_frame_t&
         poll.controller_index = index_;
         sendCommandFrame(poll);
     }
+    next_periodic_send_ = now + kPeriodicCommandInterval;
 }
 
 void socketcan::SocketcanController::write(const motor_interface::motor_frame_t& command)
@@ -79,6 +89,7 @@ void socketcan::SocketcanController::write(const motor_interface::motor_frame_t&
     last_command_ = command;
     has_last_command_ = true;
     sendCommandFrame(last_command_);
+    next_periodic_send_ = std::chrono::steady_clock::now() + kPeriodicCommandInterval;
 }
 
 void socketcan::SocketcanController::sendCommandFrame(const motor_interface::motor_frame_t& command)

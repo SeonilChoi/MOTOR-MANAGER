@@ -62,7 +62,8 @@ sudo chmod 666 /dev/EtherCAT0
 Bring up a SocketCAN interface before starting the manager. For example, with a CANable adapter:
 
 ```bash
-sudo slcand -o -c -s8 /dev/CANable can0
+sudo slcand -o -c -s8 -S 3000000 /dev/CANable can0
+sudo ip link set can0 txqueuelen 1000
 sudo ip link set can0 up
 ```
 

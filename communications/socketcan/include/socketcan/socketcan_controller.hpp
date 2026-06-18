@@ -1,6 +1,8 @@
 #ifndef SOCKETCAN_SOCKETCAN_CONTROLLER_HPP_
 #define SOCKETCAN_SOCKETCAN_CONTROLLER_HPP_
 
+#include <chrono>
+
 #include "motor_interface/motor_controller.hpp"
 #include "socketcan/socketcan_master.hpp"
 
@@ -48,6 +50,8 @@ private:
     motor_interface::motor_frame_t last_command_{};
 
     bool has_last_command_{false};
+
+    std::chrono::steady_clock::time_point next_periodic_send_{};
 
     uint8_t node_id_{0};
 };

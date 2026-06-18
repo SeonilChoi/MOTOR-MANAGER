@@ -68,6 +68,18 @@ std::string resolveDriverParamPath(
     return param_path.lexically_normal().string();
 }
 
+uint8_t readControllerIndex(const YAML::Node& slave_node)
+{
+    const int controller_index = slave_node["controller_index"].as<int>();
+    if (controller_index < 0 ||
+        controller_index >= static_cast<int>(motor_interface::MAX_CONTROLLER_SIZE)) {
+        throw std::runtime_error(
+            "controller_index must be in range 0.." +
+            std::to_string(motor_interface::MAX_CONTROLLER_SIZE - 1) + ".");
+    }
+    return static_cast<uint8_t>(controller_index);
+}
+
 } // namespace
 
 motor_manager::MotorManager::MotorManager(const std::string& config_file)
@@ -111,7 +123,7 @@ void motor_manager::MotorManager::loadConfigurations(const std::string& config_f
 
             for (uint8_t i = 0; i < m["number_of_slaves"].as<uint8_t>(); ++i) {
                 motor_interface::slave_config_t s_cfg{};
-                s_cfg.controller_index = slaves[i]["controller_index"].as<uint8_t>();
+                s_cfg.controller_index = readControllerIndex(slaves[i]);
                 s_cfg.master_id = m_cfg.id;
                 s_cfg.driver_id = slaves[i]["driver_id"].as<uint8_t>();
                 s_cfg.alias = slaves[i]["alias"].as<uint16_t>();
@@ -132,7 +144,7 @@ void motor_manager::MotorManager::loadConfigurations(const std::string& config_f
 
             for (uint8_t i = 0; i < m["number_of_slaves"].as<uint8_t>(); ++i) {
                 motor_interface::slave_config_t s_cfg{};
-                s_cfg.controller_index = slaves[i]["controller_index"].as<uint8_t>();
+                s_cfg.controller_index = readControllerIndex(slaves[i]);
                 s_cfg.master_id = m_cfg.id;
                 s_cfg.driver_id = slaves[i]["driver_id"].as<uint8_t>();
                 s_cfg.node_id = slaves[i]["node_id"].as<uint8_t>();
@@ -169,7 +181,7 @@ void motor_manager::MotorManager::loadConfigurations(const std::string& config_f
 
             for (uint8_t i = 0; i < m["number_of_slaves"].as<uint8_t>(); ++i) {
                 motor_interface::slave_config_t s_cfg{};
-                s_cfg.controller_index = slaves[i]["controller_index"].as<uint8_t>();
+                s_cfg.controller_index = readControllerIndex(slaves[i]);
                 s_cfg.master_id = m_cfg.id;
                 s_cfg.driver_id = slaves[i]["driver_id"].as<uint8_t>();
                 s_cfg.node_id = slaves[i]["node_id"].as<uint8_t>();
@@ -187,7 +199,7 @@ void motor_manager::MotorManager::loadConfigurations(const std::string& config_f
 
             for (uint8_t i = 0; i < m["number_of_slaves"].as<uint8_t>(); ++i) {
                 motor_interface::slave_config_t s_cfg{};
-                s_cfg.controller_index = slaves[i]["controller_index"].as<uint8_t>();
+                s_cfg.controller_index = readControllerIndex(slaves[i]);
                 s_cfg.master_id = m_cfg.id;
                 s_cfg.driver_id = slaves[i]["driver_id"].as<uint8_t>();
                 s_cfg.node_id = slaves[i]["node_id"].as<uint8_t>();
@@ -425,7 +437,6 @@ void motor_manager::MotorManager::updateControllers(std::optional<uint8_t> seria
 
         motor_interface::motor_frame_t controller_status{};
         controllers_[i]->read(controller_status);
-        controllers_[i]->check(controller_status);
 
         motor_interface::motor_frame_t pending_command{};
         uint64_t pending_sequence{0};
@@ -452,6 +463,8 @@ void motor_manager::MotorManager::updateControllers(std::optional<uint8_t> seria
                 applied_command_sequence_[i] = pending_sequence;
             }
             command_dirty_[i] = command_sequence_[i] != applied_command_sequence_[i];
+        } else {
+            controllers_[i]->check(controller_status);
         }
     }
 }

@@ -161,7 +161,9 @@ void socketcan::SocketcanMaster::sendFrame(const can_frame& frame)
 
     const ssize_t n = ::write(socket_, &frame, sizeof(frame));
     if (n != static_cast<ssize_t>(sizeof(frame))) {
-        throw std::runtime_error("Failed to send SocketCAN frame.");
+        const int error = errno;
+        throw std::runtime_error(
+            "Failed to send SocketCAN frame: " + std::string(std::strerror(error)));
     }
 }
 

@@ -14,7 +14,8 @@ The implementation uses Linux raw CAN sockets, NMT start, expedited SDO read/wri
 Bring up a SocketCAN interface before starting `MotorManager`. For example, with a CANable adapter:
 
 ```bash
-sudo slcand -o -c -s8 /dev/CANable can0
+sudo slcand -o -c -s8 -S 3000000 /dev/CANable can0
+sudo ip link set can0 txqueuelen 1000
 sudo ip link set can0 up
 ```
 
