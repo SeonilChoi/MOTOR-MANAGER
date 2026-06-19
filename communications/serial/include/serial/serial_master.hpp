@@ -8,7 +8,7 @@
 
 #include "motor_interface/motor_master.hpp"
 #include "motor_interface/motor_controller.hpp" // MAX_CONTROLLER_SIZE
-#include "motor_interface/motor_driver.hpp" // serial_protocol_config_t
+#include "serial/serial_driver.hpp"
 
 namespace serial {
 
@@ -52,7 +52,7 @@ public:
 
     void registerNode(uint8_t node_id);
 
-    void configureProtocol(const motor_interface::serial_protocol_config_t& protocol);
+    void configureProtocol(const serial::serial_protocol_config_t& protocol);
 
     serial_node_data_t* node(uint8_t node_id);
 
@@ -113,15 +113,11 @@ private:
 
     unsigned int baudrate_{57600};
 
-    unsigned int timeout_ms_{20};
-
-    unsigned int runtime_timeout_ms_{20};
-
     unsigned int latency_timer_ms_{16};
 
     std::vector<uint8_t> rx_buffer_;
 
-    motor_interface::serial_protocol_config_t protocol_{};
+    serial::serial_protocol_config_t protocol_{};
 
     serial_node_data_t nodes_[motor_interface::MAX_CONTROLLER_SIZE]{};
 

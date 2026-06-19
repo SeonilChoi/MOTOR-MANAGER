@@ -51,7 +51,7 @@ motor_interface::DataType defaultFieldType(uint8_t id)
     return motor_interface::DataType::U16;
 }
 
-void setFrameBytes(motor_interface::socketcan_frame_t& frame, const uint8_t (&bytes)[8])
+void setFrameBytes(socketcan::socketcan_frame_t& frame, const uint8_t (&bytes)[8])
 {
     frame.can_dlc = 8;
     std::memcpy(frame.data, bytes, sizeof(bytes));
@@ -59,7 +59,7 @@ void setFrameBytes(motor_interface::socketcan_frame_t& frame, const uint8_t (&by
 
 constexpr uint32_t CUBEMARS_EXTENDED_STATUS_BASE = 0x2900;
 
-bool isExtendedServoStatusFrame(uint8_t node_id, const motor_interface::socketcan_frame_t& frame)
+bool isExtendedServoStatusFrame(uint8_t node_id, const socketcan::socketcan_frame_t& frame)
 {
     return frame.can_dlc >= 8 &&
            frame.can_id == CUBEMARS_EXTENDED_STATUS_BASE + static_cast<uint32_t>(node_id);
@@ -224,7 +224,7 @@ int16_t cubemars::CubemarsDriver::torque(const double value)
 
 bool cubemars::CubemarsDriver::encodeSocketcanEnable(
     uint8_t node_id,
-    motor_interface::socketcan_frame_t& frame) const
+    socketcan::socketcan_frame_t& frame) const
 {
     fillMagicFrame(node_id, 0xFC, frame);
     return true;
@@ -232,7 +232,7 @@ bool cubemars::CubemarsDriver::encodeSocketcanEnable(
 
 bool cubemars::CubemarsDriver::encodeSocketcanDisable(
     uint8_t node_id,
-    motor_interface::socketcan_frame_t& frame) const
+    socketcan::socketcan_frame_t& frame) const
 {
     fillMagicFrame(node_id, 0xFD, frame);
     return true;
@@ -241,7 +241,7 @@ bool cubemars::CubemarsDriver::encodeSocketcanDisable(
 bool cubemars::CubemarsDriver::encodeSocketcanCommand(
     uint8_t node_id,
     const motor_interface::motor_frame_t& command,
-    motor_interface::socketcan_frame_t& frame) const
+    socketcan::socketcan_frame_t& frame) const
 {
     const bool use_position =
         rxFieldEnabled(motor_interface::ID_TARGET_POSITION) &&
@@ -257,7 +257,7 @@ bool cubemars::CubemarsDriver::encodeSocketcanCommand(
     const double position = use_position ?
         clampRange(command.position, config_.lower, config_.upper) : 0.0;
     const double velocity = use_velocity ? clampAbs(command.velocity, config_.speed) : 0.0;
-    const double torque = use_torque ? clampAbs(command.torque, config_.rated_torque) : 0.0;
+    const double torque = use_torque ? clampAbs(command.effort, config_.rated_torque) : 0.0;
     const double p_des = position * direction;
     const double v_des = velocity * direction;
     const double tau_ff = torque * direction;
@@ -272,7 +272,7 @@ bool cubemars::CubemarsDriver::encodeSocketcanCommand(
     const int kd_int = floatToUint(kd, params_.kd_min, params_.kd_max, 12);
     const int t_int = floatToUint(tau_ff, params_.t_min, params_.t_max, 12);
 
-    frame = motor_interface::socketcan_frame_t{};
+    frame = socketcan::socketcan_frame_t{};
     frame.can_id = node_id;
     frame.can_dlc = 8;
     frame.data[0] = static_cast<uint8_t>(p_int >> 8);
@@ -289,7 +289,7 @@ bool cubemars::CubemarsDriver::encodeSocketcanCommand(
 
 bool cubemars::CubemarsDriver::acceptsSocketcanStatusFrame(
     uint8_t node_id,
-    const motor_interface::socketcan_frame_t& frame) const
+    const socketcan::socketcan_frame_t& frame) const
 {
     if (isExtendedServoStatusFrame(node_id, frame)) return true;
 
@@ -298,7 +298,7 @@ bool cubemars::CubemarsDriver::acceptsSocketcanStatusFrame(
 
 bool cubemars::CubemarsDriver::decodeSocketcanStatus(
     uint8_t node_id,
-    const motor_interface::socketcan_frame_t& frame,
+    const socketcan::socketcan_frame_t& frame,
     motor_interface::motor_frame_t& status) const
 {
     if (!acceptsSocketcanStatusFrame(node_id, frame)) return false;
@@ -316,7 +316,7 @@ bool cubemars::CubemarsDriver::decodeSocketcanStatus(
             status.velocity = static_cast<double>(v_int) * servo_velocity_scale_ * direction;
         }
         if (txFieldEnabled(motor_interface::ID_CURRENT_TORQUE)) {
-            status.torque = static_cast<double>(i_int) * servo_current_scale_ * direction;
+            status.effort = static_cast<double>(i_int) * servo_current_scale_ * direction;
         }
 
         status.statusword = 1;
@@ -339,7 +339,7 @@ bool cubemars::CubemarsDriver::decodeSocketcanStatus(
         status.velocity = uintToFloat(v_int, params_.v_min, params_.v_max, 12) * direction;
     }
     if (txFieldEnabled(motor_interface::ID_CURRENT_TORQUE)) {
-        status.torque = uintToFloat(t_int, params_.t_min, params_.t_max, 12) * direction;
+        status.effort = uintToFloat(t_int, params_.t_min, params_.t_max, 12) * direction;
     }
 
     status.statusword = 1;
@@ -497,9 +497,9 @@ double cubemars::CubemarsDriver::uintToFloat(int value, double min, double max, 
 void cubemars::CubemarsDriver::fillMagicFrame(
     uint8_t node_id,
     uint8_t command,
-    motor_interface::socketcan_frame_t& frame) const
+    socketcan::socketcan_frame_t& frame) const
 {
-    frame = motor_interface::socketcan_frame_t{};
+    frame = socketcan::socketcan_frame_t{};
     frame.can_id = node_id;
 
     const uint8_t bytes[8] = {

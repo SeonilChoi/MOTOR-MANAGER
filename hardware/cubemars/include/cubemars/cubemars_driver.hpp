@@ -4,6 +4,7 @@
 #include <string>
 
 #include "motor_interface/motor_driver.hpp"
+#include "socketcan/socketcan_driver.hpp"
 
 namespace YAML {
 class Node;
@@ -11,7 +12,7 @@ class Node;
 
 namespace cubemars {
 
-class CubemarsDriver : public motor_interface::MotorDriver {
+class CubemarsDriver : public motor_interface::MotorDriver, public socketcan::SocketcanDriver {
 public:
     explicit CubemarsDriver(const motor_interface::driver_config_t& config);
 
@@ -35,24 +36,22 @@ public:
 
     int16_t torque(const double value) override;
 
-    bool hasSocketcanFrameCodec() const override { return true; }
+    bool encodeSocketcanEnable(uint8_t node_id, socketcan::socketcan_frame_t& frame) const override;
 
-    bool encodeSocketcanEnable(uint8_t node_id, motor_interface::socketcan_frame_t& frame) const override;
-
-    bool encodeSocketcanDisable(uint8_t node_id, motor_interface::socketcan_frame_t& frame) const override;
+    bool encodeSocketcanDisable(uint8_t node_id, socketcan::socketcan_frame_t& frame) const override;
 
     bool encodeSocketcanCommand(
         uint8_t node_id,
         const motor_interface::motor_frame_t& command,
-        motor_interface::socketcan_frame_t& frame) const override;
+        socketcan::socketcan_frame_t& frame) const override;
 
     bool acceptsSocketcanStatusFrame(
         uint8_t node_id,
-        const motor_interface::socketcan_frame_t& frame) const override;
+        const socketcan::socketcan_frame_t& frame) const override;
 
     bool decodeSocketcanStatus(
         uint8_t node_id,
-        const motor_interface::socketcan_frame_t& frame,
+        const socketcan::socketcan_frame_t& frame,
         motor_interface::motor_frame_t& status) const override;
 
 private:
@@ -84,7 +83,7 @@ private:
 
     double uintToFloat(int value, double min, double max, int bits) const;
 
-    void fillMagicFrame(uint8_t node_id, uint8_t command, motor_interface::socketcan_frame_t& frame) const;
+    void fillMagicFrame(uint8_t node_id, uint8_t command, socketcan::socketcan_frame_t& frame) const;
 
     mit_params_t params_{};
 

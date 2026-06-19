@@ -114,7 +114,7 @@ void ethercat::EthercatController::write(const motor_interface::motor_frame_t& c
             rx_interfaces[i].id = id;
             rx_interfaces[i].type = motor_interface::DataType::S16;
             rx_interfaces[i].size = 2;
-            motor_interface::fill<int16_t>(driver_->torque(command.torque), rx_interfaces[i].data);
+            motor_interface::fill<int16_t>(driver_->torque(command.effort), rx_interfaces[i].data);
         } else {
             throw std::runtime_error("Invalid RX interface ID.");
         }
@@ -139,7 +139,7 @@ void ethercat::EthercatController::read(motor_interface::motor_frame_t& status)
         } else if (e.id == motor_interface::ID_CURRENT_VELOCITY) {
             status.velocity = driver_->velocity(motor_interface::value<int32_t>(e.data));
         } else if (e.id == motor_interface::ID_CURRENT_TORQUE) {
-            status.torque = driver_->torque(motor_interface::value<int16_t>(e.data));
+            status.effort = driver_->torque(motor_interface::value<int16_t>(e.data));
         } else {
             throw std::runtime_error("Invalid TX interface ID.");
         }

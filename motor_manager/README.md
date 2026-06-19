@@ -61,8 +61,7 @@ Top-level keys:
 
 EtherCAT, CANopen, and SocketCAN masters run in the real-time loop. Serial
 masters run in separate worker threads so blocking Dynamixel traffic does not
-delay the EtherCAT cycle. Serial masters also accept `serial_runtime_timeout_ms`
-to cap the cyclic bulk-read wait separately from startup `serial_timeout_ms`.
+delay the EtherCAT cycle.
 
 ### EtherCAT master
 
@@ -94,7 +93,7 @@ masters:
     slaves:
       - controller_index: 0
         driver_id: 0
-        node_id: 1
+        can_id: 1
         profile_mode: 0
 ```
 

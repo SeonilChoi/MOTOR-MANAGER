@@ -2,24 +2,7 @@
 
 Abstract C++ interfaces used by the `motor_manager` package. The headers are installed from `include/motor_interface` and all symbols live in namespace `motor_interface`.
 
-This library does not talk to hardware directly. Concrete transports implement `MotorMaster` and `MotorController`; concrete vendors implement `MotorDriver`.
-
-## Class roles
-
-```mermaid
-flowchart TB
-  subgraph abstractions["motor_interface"]
-    MM[MotorMaster]
-    CTRL[MotorController]
-    DRV[MotorDriver]
-  end
-
-  MF["motor_frame_t\n(common_motor_interface)"]
-
-  CTRL -->|"initialize(master, driver)"| MM
-  CTRL -->|"uses entry tables and scaling"| DRV
-  CTRL <-.->|"read/write/check"| MF
-```
+This library does not talk to hardware directly. Concrete transports implement `MotorMaster` and `MotorController`; concrete vendors implement `MotorDriver`. Transport-specific driver hooks live outside this package, such as `serial::SerialDriver` and `socketcan::SocketcanDriver`.
 
 ## Limits
 
@@ -74,7 +57,7 @@ Declared in `include/motor_interface/motor_controller.hpp`.
 | `driver_id` | `uint8_t` | all | Driver ID used for PDO layout and scaling. |
 | `alias` | `uint16_t` | EtherCAT | EtherCAT alias. |
 | `position` | `uint16_t` | EtherCAT | EtherCAT ring position. |
-| `node_id` | `uint8_t` | CANopen | CANopen node ID. |
+| `can_id` | `uint8_t` | CANopen / SocketCAN / Serial | Bus node or CAN ID used by the controller. |
 | `vendor_id` | `uint32_t` | EtherCAT | EtherCAT vendor ID. |
 | `product_id` | `uint32_t` | EtherCAT | EtherCAT product code. |
 | `profile_mode` | `int8_t` | all controllers | `0`: position, `1`: velocity, `2`: torque. |
@@ -157,3 +140,97 @@ These IDs are used by driver YAML files and `motor_frame_t::target_interface_id`
 | `ID_MAX_DECELERATION` | `58` | Maximum deceleration. |
 | `ID_RXPDO` | `98` | RX PDO marker row in driver interface YAML. |
 | `ID_TXPDO` | `99` | TX PDO marker row in driver interface YAML. |
+
+# motor_interface
+
+모터 제어를 위한 추상화 클래스로, `MotorMaster`, `MotorController`, `MotorDriver`로 구성된다.
+
+## `MotorMaster`
+
+`MotorMaster`는 하나의 필드버스 마스터를 담는다.
+
+### `MAX_MASTER_SIZE`
+
+| Name | Type | Meaning | Default |
+| --- | --- | --- | --- |
+| `MAX_MASTER_SIZE` | `uint8_t` | 가능한 마스터 수의 최대값 | `8` |
+
+### `master_config_t`
+
+`master_config_t`는 마스터를 초기화 할 때 사용하며, 마스터의 정보를 담는다.
+
+| Name | Type | Meaning | Default |
+| --- | --- | --- | --- |
+| `id` | `uint8_t` | 마스터의 고유한 ID | `0` |
+| `number_of_slaves` | `uint8_t` | 마스터가 가질 `controller`의 수 | `0` |
+| `ethercat_master_index` | `unsigned int` | EtherCAT 전용 마스터 인덱스 | `0` |
+| `can_interface_index` | `unsigned int` | CAN 전용 장치 인덱스 | `0` |
+| `can_bitrate` | `unsigned int` | CAN 전용 비트레이트 | `0` |
+| `serial_port` | `std::string` | Serial 전용 포트 이름 | ` ` |
+| `serial_baudrate` | `unsigned int` | Serial 전용 보드레이트 | `0` |
+
+### functions
+
+| Function | Purpose |
+| --- | --- |
+| `initialize()` | 마스터를 초기화한다. |
+| `activate()` | 통신을 시작한다. |
+| `deactivate()` | 통신을 멈춘다. |
+| `transmit()` | 버스 데이터를 전송한다. |
+| `receive()` | 버스 데이터를 수신한다. |
+| `apply_application_time(time)` | 사이클 타임스텝을 적용한다. |
+| `save_clock()` | 버스 시간을 동기화 및 저장한다. |
+| `id()` | 마스터 ID를 반환한다. |
+| `number_of_slaves()` | 마스터가 가진 슬레이브 수를 반환한다. |
+
+## `MotorController`
+
+`MotorController`는 슬레이브 혹은 노드를 담으며, 하나의 마스터와 하나의 드라이브를 갖는다.
+
+### `MAX_CONTROLLER_SIZE`
+
+| Name | Type | Meaning | Default |
+| --- | --- | --- | --- |
+| `MAX_CONTROLLER_SIZE` | `uint8_t` | 가능한 컨트롤러 수의 최대값 | `32` |
+
+### `slave_config_t`
+
+`slave_config_t`는 컨트롤러를 초기화 할 때 사용하며, 컨트롤러러의 정보를 담는다.
+
+| Name | Type | Meaning | Default |
+| --- | --- | --- | --- |
+| `controller_index` | `uint8_t` | `motor_controller`의 고유한 인덱스 | `0` |
+| `master_id` | `uint8_t` | `motor_controller`가 속한 마스터 ID | `0` |
+| `driver_id` | `uint8_t` | `motor_controller`의 드라이버 ID | `0` |
+| `alias` | `uint16_t` | EtherCAT 전용 alias 값 | `0` |
+| `position` | `uint16_t` | EtherCAT 전용 position 값 | `0` |
+| `vendor_id` | `uint32_t` | EtherCAT 전용 vendor ID 값 | `0` |
+| `product_id` | `uint32_t` | EtherCAT 전용 product ID 값 | `0` |
+| `can_id` | `uint8_t` | CAN 전용 ID 값 | `0` |
+| `profile_mode` | `uint8_t` | 0: 위치, 1: 속도, 2: 힘 | `0` |
+
+### functions
+
+| Function | Purpose |
+| --- | --- |
+| `initialize()` | 컨트롤러를 초기화 한다. |
+| `enable()` | 모터를 `Enable` 상태로 만든다. |
+| `disable()` | 모터를 `Disable` 상태로 만든다. |
+| `check(status)` | 현재 모터 상태를 검사한다. |
+| `write(command)` | 모터에 명령을 쓴다. |
+| `read(status)` | 모터의 상태를 읽는다. |
+| `master_id()` | 마스터 ID를 반환한다. |
+| `driver_id()` | 드라이버 ID를 반환한다. |
+| `registerEntries()` | 아이템과 인터페이스를 등록한다. |
+| `writeData(rx_interfaces, number_of_rx_interfaces)` | 등록된 인터페이스에 데이터를 쓴다. |
+| `readData(tx_interfaces, number_of_tx_interfaces)` | 등록된 인터페이스의 데이터를 읽는다. |
+
+## `MotorDriver`
+
+`MotorDriver`는 하드웨어 정보를 담으며, 제조사가 제공하는 하드웨어 제어 로직을 `MotorController`와 분리하는 역할을 한다.
+
+### `MAX_DRIVER_SIZE`
+
+| Name | Type | Meaning | Default |
+| --- | --- | --- | --- |
+| `MAX_DRIVER_SIZE` | `uint8_t` | 가능한 드라이버 수의 최대값 | `8` |

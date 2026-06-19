@@ -14,7 +14,6 @@ namespace motor_interface {
 inline constexpr uint8_t MAX_DRIVER_SIZE = 8;
 
 inline constexpr uint8_t MAX_DATA_SIZE = 4;
-inline constexpr uint8_t MAX_SOCKETCAN_DATA_SIZE = 8;
 inline constexpr uint8_t MAX_ITEM_SIZE = 32;
 
 inline constexpr uint8_t ID_CONTROLWORD      = 0;
@@ -88,22 +87,6 @@ struct entry_table_t {
     DataType type;
     uint8_t size;
     uint8_t data[MAX_DATA_SIZE];
-};
-
-struct serial_protocol_config_t {
-    bool configured{false};
-    uint8_t broadcast_id{0};
-    uint8_t instruction_read{0};
-    uint8_t instruction_write{0};
-    uint8_t instruction_status{0};
-    uint8_t instruction_bulk_read{0};
-    uint8_t instruction_bulk_write{0};
-};
-
-struct socketcan_frame_t {
-    uint32_t can_id{0};
-    uint8_t can_dlc{0};
-    uint8_t data[MAX_SOCKETCAN_DATA_SIZE]{};
 };
 
 inline DataType toDataType(const std::string& type) {
@@ -183,55 +166,6 @@ public:
 
     int8_t profile_torque_value() const { return config_.profile_torque_value; }
 
-    const serial_protocol_config_t& serial_protocol() const { return serial_protocol_; }
-
-    virtual bool hasSocketcanFrameCodec() const { return false; }
-
-    virtual bool encodeSocketcanEnable(uint8_t node_id, socketcan_frame_t& frame) const
-    {
-        (void)node_id;
-        (void)frame;
-        return false;
-    }
-
-    virtual bool encodeSocketcanDisable(uint8_t node_id, socketcan_frame_t& frame) const
-    {
-        (void)node_id;
-        (void)frame;
-        return false;
-    }
-
-    virtual bool encodeSocketcanCommand(
-        uint8_t node_id,
-        const motor_frame_t& command,
-        socketcan_frame_t& frame) const
-    {
-        (void)node_id;
-        (void)command;
-        (void)frame;
-        return false;
-    }
-
-    virtual bool acceptsSocketcanStatusFrame(
-        uint8_t node_id,
-        const socketcan_frame_t& frame) const
-    {
-        (void)node_id;
-        (void)frame;
-        return false;
-    }
-
-    virtual bool decodeSocketcanStatus(
-        uint8_t node_id,
-        const socketcan_frame_t& frame,
-        motor_frame_t& status) const
-    {
-        (void)node_id;
-        (void)frame;
-        (void)status;
-        return false;
-    }
-
 protected:
     entry_table_t items_[MAX_ITEM_SIZE];
 
@@ -244,8 +178,6 @@ protected:
     uint8_t number_of_rx_interfaces_{0};
 
     uint8_t number_of_tx_interfaces_{0};
-
-    serial_protocol_config_t serial_protocol_{};
 
     const driver_config_t config_;
 };

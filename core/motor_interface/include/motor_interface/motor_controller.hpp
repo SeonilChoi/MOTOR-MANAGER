@@ -15,10 +15,10 @@ struct slave_config_t {
     uint8_t driver_id;
     uint16_t alias{};
     uint16_t position{};
-    uint8_t node_id{};
     uint32_t vendor_id{};
     uint32_t product_id{};
-    int8_t profile_mode{};
+    uint8_t can_id{};
+    uint8_t profile_mode{};
 };
 
 class MotorController {

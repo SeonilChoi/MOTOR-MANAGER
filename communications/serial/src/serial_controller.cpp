@@ -109,8 +109,10 @@ void serial::SerialController::initialize(motor_interface::MotorMaster& master, 
 
     master_ = m;
     driver_ = &driver;
+    serial_driver_ = dynamic_cast<SerialDriver*>(&driver);
+    if (!serial_driver_) throw std::runtime_error("Driver does not provide a serial protocol.");
 
-    master_->configureProtocol(driver_->serial_protocol());
+    master_->configureProtocol(serial_driver_->serial_protocol());
 
     master_->registerNode(node_id_);
 
@@ -210,7 +212,7 @@ void serial::SerialController::write(const motor_interface::motor_frame_t& comma
         } else if (id == motor_interface::ID_TARGET_VELOCITY) {
             fillInterfaceValue(*descriptor, driver_->velocity(command.velocity), rx_interfaces[i]);
         } else if (id == motor_interface::ID_TARGET_TORQUE) {
-            fillInterfaceValue(*descriptor, driver_->torque(command.torque), rx_interfaces[i]);
+            fillInterfaceValue(*descriptor, driver_->torque(command.effort), rx_interfaces[i]);
         } else {
             throw std::runtime_error("Invalid serial target interface ID.");
         }
@@ -235,7 +237,7 @@ void serial::SerialController::read(motor_interface::motor_frame_t& status)
         } else if (e.id == motor_interface::ID_CURRENT_VELOCITY) {
             status.velocity = driver_->velocity(static_cast<int32_t>(readSignedValue(e)));
         } else if (e.id == motor_interface::ID_CURRENT_TORQUE) {
-            status.torque = driver_->torque(static_cast<int16_t>(readSignedValue(e)));
+            status.effort = driver_->torque(static_cast<int16_t>(readSignedValue(e)));
         } else {
             throw std::runtime_error("Invalid serial TX interface ID.");
         }

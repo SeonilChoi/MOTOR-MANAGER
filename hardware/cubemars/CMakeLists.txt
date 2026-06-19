@@ -6,7 +6,9 @@ target_include_directories(cubemars PUBLIC
 )
 
 target_link_libraries(cubemars
-  PUBLIC motor_interface::motor_interface
+  PUBLIC
+    motor_interface::motor_interface
+    socketcan::socketcan
   PRIVATE yaml-cpp
 )
 

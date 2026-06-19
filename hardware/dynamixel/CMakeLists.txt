@@ -6,7 +6,9 @@ target_include_directories(dynamixel PUBLIC
 )
 
 target_link_libraries(dynamixel
-  PUBLIC motor_interface::motor_interface
+  PUBLIC
+    motor_interface::motor_interface
+    serial::serial
   PRIVATE yaml-cpp
 )
 

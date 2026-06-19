@@ -80,6 +80,35 @@ uint8_t readControllerIndex(const YAML::Node& slave_node)
     return static_cast<uint8_t>(controller_index);
 }
 
+uint8_t readCanId(const YAML::Node& slave_node)
+{
+    const YAML::Node can_id = slave_node["can_id"] ? slave_node["can_id"] : slave_node["node_id"];
+    if (!can_id) throw std::runtime_error("slave requires can_id.");
+
+    const int id = can_id.as<int>();
+    if (id < 0 || id > 255) {
+        throw std::runtime_error("can_id must be in range 0..255.");
+    }
+
+    return static_cast<uint8_t>(id);
+}
+
+uint8_t readProfileMode(const YAML::Node& slave_node, bool required = true)
+{
+    const YAML::Node profile_mode_node = slave_node["profile_mode"];
+    if (!profile_mode_node) {
+        if (required) throw std::runtime_error("slave requires profile_mode.");
+        return 0;
+    }
+
+    const int profile_mode = profile_mode_node.as<int>();
+    if (profile_mode < 0 || profile_mode > 2) {
+        throw std::runtime_error("profile_mode must be 0, 1, or 2.");
+    }
+
+    return static_cast<uint8_t>(profile_mode);
+}
+
 } // namespace
 
 motor_manager::MotorManager::MotorManager(const std::string& config_file)
@@ -130,7 +159,7 @@ void motor_manager::MotorManager::loadConfigurations(const std::string& config_f
                 s_cfg.position = slaves[i]["position"].as<uint16_t>();
                 s_cfg.vendor_id = slaves[i]["vendor_id"].as<uint32_t>();
                 s_cfg.product_id = slaves[i]["product_id"].as<uint32_t>();
-                s_cfg.profile_mode = slaves[i]["profile_mode"].as<int8_t>();
+                s_cfg.profile_mode = readProfileMode(slaves[i]);
 
                 controllers_[s_cfg.controller_index] = std::make_unique<ethercat::EthercatController>(s_cfg);
                 s_idx++;
@@ -147,8 +176,8 @@ void motor_manager::MotorManager::loadConfigurations(const std::string& config_f
                 s_cfg.controller_index = readControllerIndex(slaves[i]);
                 s_cfg.master_id = m_cfg.id;
                 s_cfg.driver_id = slaves[i]["driver_id"].as<uint8_t>();
-                s_cfg.node_id = slaves[i]["node_id"].as<uint8_t>();
-                s_cfg.profile_mode = slaves[i]["profile_mode"].as<int8_t>();
+                s_cfg.can_id = readCanId(slaves[i]);
+                s_cfg.profile_mode = readProfileMode(slaves[i]);
 
                 controllers_[s_cfg.controller_index] = std::make_unique<canopen::CanopenController>(s_cfg);
                 s_idx++;
@@ -171,11 +200,6 @@ void motor_manager::MotorManager::loadConfigurations(const std::string& config_f
                 m_cfg.serial_baudrate = 57600;
             }
 
-            m_cfg.serial_timeout_ms = m["serial_timeout_ms"] ?
-                m["serial_timeout_ms"].as<unsigned int>() : 20;
-            m_cfg.serial_runtime_timeout_ms = m["serial_runtime_timeout_ms"] ?
-                m["serial_runtime_timeout_ms"].as<unsigned int>() : m_cfg.serial_timeout_ms;
-
             serial_master_ids_.insert(m_cfg.id);
             masters_[m_cfg.id] = std::make_unique<serial::SerialMaster>(m_cfg);
 
@@ -184,8 +208,8 @@ void motor_manager::MotorManager::loadConfigurations(const std::string& config_f
                 s_cfg.controller_index = readControllerIndex(slaves[i]);
                 s_cfg.master_id = m_cfg.id;
                 s_cfg.driver_id = slaves[i]["driver_id"].as<uint8_t>();
-                s_cfg.node_id = slaves[i]["node_id"].as<uint8_t>();
-                s_cfg.profile_mode = slaves[i]["profile_mode"].as<int8_t>();
+                s_cfg.can_id = readCanId(slaves[i]);
+                s_cfg.profile_mode = readProfileMode(slaves[i]);
 
                 controllers_[s_cfg.controller_index] = std::make_unique<serial::SerialController>(s_cfg);
                 s_idx++;
@@ -202,9 +226,8 @@ void motor_manager::MotorManager::loadConfigurations(const std::string& config_f
                 s_cfg.controller_index = readControllerIndex(slaves[i]);
                 s_cfg.master_id = m_cfg.id;
                 s_cfg.driver_id = slaves[i]["driver_id"].as<uint8_t>();
-                s_cfg.node_id = slaves[i]["node_id"].as<uint8_t>();
-                s_cfg.profile_mode = slaves[i]["profile_mode"] ?
-                    slaves[i]["profile_mode"].as<int8_t>() : 0;
+                s_cfg.can_id = readCanId(slaves[i]);
+                s_cfg.profile_mode = readProfileMode(slaves[i], false);
 
                 controllers_[s_cfg.controller_index] = std::make_unique<socketcan::SocketcanController>(s_cfg);
                 s_idx++;

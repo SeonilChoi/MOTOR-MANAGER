@@ -16,9 +16,7 @@ struct master_config_t {
     unsigned int can_interface_index{};
     unsigned int can_bitrate{};
     std::string serial_port{};
-    unsigned int serial_baudrate{57600};
-    unsigned int serial_timeout_ms{20};
-    unsigned int serial_runtime_timeout_ms{20};
+    unsigned int serial_baudrate{};
 };
 
 class MotorMaster {

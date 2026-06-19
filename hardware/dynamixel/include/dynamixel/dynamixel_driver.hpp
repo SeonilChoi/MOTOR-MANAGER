@@ -5,6 +5,7 @@
 #include <unordered_map>
 
 #include "motor_interface/motor_driver.hpp"
+#include "serial/serial_driver.hpp"
 
 namespace YAML {
 class Node;
@@ -12,7 +13,7 @@ class Node;
 
 namespace dynamixel {
 
-class DynamixelDriver : public motor_interface::MotorDriver {
+class DynamixelDriver : public motor_interface::MotorDriver, public serial::SerialDriver {
 public:
     explicit DynamixelDriver(const motor_interface::driver_config_t& config);
 

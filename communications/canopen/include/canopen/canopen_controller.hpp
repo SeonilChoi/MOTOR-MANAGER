@@ -18,7 +18,7 @@ class CanopenController : public motor_interface::MotorController {
 public:
     explicit CanopenController(const motor_interface::slave_config_t& config)
     : motor_interface::MotorController(config)
-    , node_id_(config.node_id) {}
+    , node_id_(config.can_id) {}
 
     virtual ~CanopenController() = default;
 

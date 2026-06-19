@@ -20,6 +20,8 @@ constexpr uint64_t NSEC_PER_MSEC = 1000000ULL;
 constexpr uint64_t NSEC_PER_USEC = 1000ULL;
 constexpr uint32_t DXL_DEFAULT_USB_LATENCY_TIMER_MS = 16;
 constexpr uint32_t DXL_PACKET_TIMEOUT_MARGIN_MS = 2;
+constexpr uint32_t SERIAL_TIMEOUT_MS = 20;
+constexpr uint32_t SERIAL_RUNTIME_TIMEOUT_MS = 20;
 
 uint64_t nowNs()
 {
@@ -210,8 +212,6 @@ serial::SerialMaster::SerialMaster(const motor_interface::master_config_t& confi
     : motor_interface::MotorMaster(config)
     , port_(config.serial_port)
     , baudrate_(config.serial_baudrate)
-    , timeout_ms_(config.serial_timeout_ms)
-    , runtime_timeout_ms_(config.serial_runtime_timeout_ms)
 {
 }
 
@@ -362,7 +362,7 @@ void serial::SerialMaster::registerNode(uint8_t node_id)
     throw std::runtime_error("Too many serial nodes.");
 }
 
-void serial::SerialMaster::configureProtocol(const motor_interface::serial_protocol_config_t& protocol)
+void serial::SerialMaster::configureProtocol(const serial::serial_protocol_config_t& protocol)
 {
     if (!protocol.configured) throw std::runtime_error("Serial protocol is not configured by driver.");
 
@@ -459,10 +459,10 @@ bool serial::SerialMaster::writeRegister(uint8_t node_id, uint16_t address, cons
 
     sendPacket(node_id, protocol_.instruction_write, parameters);
 
-    const uint64_t deadline = nowNs() + timeout_ms_ * NSEC_PER_MSEC;
+    const uint64_t deadline = nowNs() + SERIAL_TIMEOUT_MS * NSEC_PER_MSEC;
     while (nowNs() < deadline) {
         status_packet_t status{};
-        if (!receiveStatus(status, timeout_ms_)) return false;
+        if (!receiveStatus(status, SERIAL_TIMEOUT_MS)) return false;
         if (status.id != node_id) continue;
 
         if (serial_node_data_t* n = findNode(node_id)) n->last_packet_error = status.error;
@@ -485,10 +485,10 @@ bool serial::SerialMaster::readRegister(uint8_t node_id, uint16_t address, uint8
 
     sendPacket(node_id, protocol_.instruction_read, parameters);
 
-    const uint64_t deadline = nowNs() + timeout_ms_ * NSEC_PER_MSEC;
+    const uint64_t deadline = nowNs() + SERIAL_TIMEOUT_MS * NSEC_PER_MSEC;
     while (nowNs() < deadline) {
         status_packet_t status{};
-        if (!receiveStatus(status, timeout_ms_)) return false;
+        if (!receiveStatus(status, SERIAL_TIMEOUT_MS)) return false;
         if (status.id != node_id) continue;
 
         if (serial_node_data_t* n = findNode(node_id)) n->last_packet_error = status.error;
@@ -721,7 +721,7 @@ void serial::SerialMaster::bulkRead(uint16_t address, uint8_t size, const std::v
     const std::size_t expected_response_bytes =
         node_ids.size() * (static_cast<std::size_t>(size) + 10U);
     const uint32_t timeout_ms =
-        packetTimeoutMs(runtime_timeout_ms_, baudrate_, expected_response_bytes, latency_timer_ms_);
+        packetTimeoutMs(SERIAL_RUNTIME_TIMEOUT_MS, baudrate_, expected_response_bytes, latency_timer_ms_);
     std::vector<uint8_t> remaining = node_ids;
     const uint64_t deadline = nowNs() + static_cast<uint64_t>(timeout_ms) * NSEC_PER_MSEC;
     while (!remaining.empty() && nowNs() < deadline) {

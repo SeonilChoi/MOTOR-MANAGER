@@ -2,6 +2,7 @@
 #define SERIAL_SERIAL_CONTROLLER_HPP_
 
 #include "motor_interface/motor_controller.hpp"
+#include "serial/serial_driver.hpp"
 #include "serial/serial_master.hpp"
 
 namespace serial {
@@ -10,7 +11,7 @@ class SerialController : public motor_interface::MotorController {
 public:
     explicit SerialController(const motor_interface::slave_config_t& config)
     : motor_interface::MotorController(config)
-    , node_id_(config.node_id) {}
+    , node_id_(config.can_id) {}
 
     virtual ~SerialController() = default;
 
@@ -53,6 +54,8 @@ private:
     SerialMaster* master_{nullptr};
 
     serial_node_data_t* node_{nullptr};
+
+    SerialDriver* serial_driver_{nullptr};
 
     motor_interface::entry_table_t rx_interfaces_[motor_interface::MAX_INTERFACE_SIZE]{};
 

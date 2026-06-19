@@ -4,6 +4,7 @@
 #include <chrono>
 
 #include "motor_interface/motor_controller.hpp"
+#include "socketcan/socketcan_driver.hpp"
 #include "socketcan/socketcan_master.hpp"
 
 namespace socketcan {
@@ -12,7 +13,7 @@ class SocketcanController : public motor_interface::MotorController {
 public:
     explicit SocketcanController(const motor_interface::slave_config_t& config)
     : motor_interface::MotorController(config)
-    , node_id_(config.node_id) {}
+    , node_id_(config.can_id) {}
 
     virtual ~SocketcanController() = default;
 
@@ -37,13 +38,15 @@ private:
 
     void sendCommandFrame(const motor_interface::motor_frame_t& command);
 
-    void enqueueDriverFrame(const motor_interface::socketcan_frame_t& frame);
+    void enqueueDriverFrame(const socketcan_frame_t& frame);
 
-    motor_interface::socketcan_frame_t toDriverFrame(const can_frame& frame) const;
+    socketcan_frame_t toDriverFrame(const can_frame& frame) const;
 
     SocketcanMaster* master_{nullptr};
 
     socketcan_node_data_t* node_{nullptr};
+
+    SocketcanDriver* socketcan_driver_{nullptr};
 
     motor_interface::motor_frame_t status_cache_{};
 

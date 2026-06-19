@@ -147,10 +147,6 @@ The real-time cyclic loop:
 7. Syncs clocks where supported.
 8. Transmits non-serial bus data.
 
-For serial masters, `serial_timeout_ms` is used for startup register reads and
-writes, while optional `serial_runtime_timeout_ms` limits each cyclic bulk-read
-wait.
-
 Commands and status use `motor_interface::motor_frame_t` from `common_motor_interface`.
 
 | Function | Purpose |

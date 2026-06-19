@@ -17,7 +17,8 @@ void socketcan::SocketcanController::initialize(
 {
     SocketcanMaster* m = dynamic_cast<SocketcanMaster*>(&master);
     if (!m) throw std::runtime_error("Failed to cast master to SocketcanMaster.");
-    if (!driver.hasSocketcanFrameCodec()) {
+    socketcan_driver_ = dynamic_cast<SocketcanDriver*>(&driver);
+    if (!socketcan_driver_) {
         throw std::runtime_error("Driver does not provide a SocketCAN frame codec.");
     }
 
@@ -41,8 +42,8 @@ bool socketcan::SocketcanController::enable()
 {
     if (current_driver_state_ == motor_interface::DriverState::OperationEnabled) return true;
 
-    motor_interface::socketcan_frame_t frame{};
-    if (driver_->encodeSocketcanEnable(node_id_, frame)) {
+    socketcan_frame_t frame{};
+    if (socketcan_driver_->encodeSocketcanEnable(node_id_, frame)) {
         enqueueDriverFrame(frame);
     }
 
@@ -54,8 +55,8 @@ bool socketcan::SocketcanController::disable()
 {
     if (current_driver_state_ == motor_interface::DriverState::SwitchOnDisabled) return true;
 
-    motor_interface::socketcan_frame_t frame{};
-    if (driver_->encodeSocketcanDisable(node_id_, frame)) {
+    socketcan_frame_t frame{};
+    if (socketcan_driver_->encodeSocketcanDisable(node_id_, frame)) {
         enqueueDriverFrame(frame);
     }
 
@@ -94,8 +95,8 @@ void socketcan::SocketcanController::write(const motor_interface::motor_frame_t&
 
 void socketcan::SocketcanController::sendCommandFrame(const motor_interface::motor_frame_t& command)
 {
-    motor_interface::socketcan_frame_t frame{};
-    if (!driver_->encodeSocketcanCommand(node_id_, command, frame)) {
+    socketcan_frame_t frame{};
+    if (!socketcan_driver_->encodeSocketcanCommand(node_id_, command, frame)) {
         throw std::runtime_error("Failed to encode SocketCAN command frame.");
     }
 
@@ -107,15 +108,15 @@ void socketcan::SocketcanController::read(motor_interface::motor_frame_t& status
     can_frame raw{};
     const bool has_frame = master_->takeReceivedFrame(
         [this](const can_frame& frame) {
-            const motor_interface::socketcan_frame_t driver_frame = toDriverFrame(frame);
-            return driver_->acceptsSocketcanStatusFrame(node_id_, driver_frame);
+            const socketcan_frame_t driver_frame = toDriverFrame(frame);
+            return socketcan_driver_->acceptsSocketcanStatusFrame(node_id_, driver_frame);
         },
         raw);
 
     if (has_frame) {
         motor_interface::motor_frame_t decoded = status_cache_;
-        const motor_interface::socketcan_frame_t driver_frame = toDriverFrame(raw);
-        if (driver_->decodeSocketcanStatus(node_id_, driver_frame, decoded)) {
+        const socketcan_frame_t driver_frame = toDriverFrame(raw);
+        if (socketcan_driver_->decodeSocketcanStatus(node_id_, driver_frame, decoded)) {
             decoded.controller_index = index_;
             status_cache_ = decoded;
         }
@@ -141,9 +142,9 @@ void socketcan::SocketcanController::readData(
 }
 
 void socketcan::SocketcanController::enqueueDriverFrame(
-    const motor_interface::socketcan_frame_t& frame)
+    const socketcan_frame_t& frame)
 {
-    if (frame.can_dlc > motor_interface::MAX_SOCKETCAN_DATA_SIZE) {
+    if (frame.can_dlc > MAX_SOCKETCAN_DATA_SIZE) {
         throw std::runtime_error("Invalid SocketCAN frame size.");
     }
 
@@ -155,10 +156,10 @@ void socketcan::SocketcanController::enqueueDriverFrame(
     master_->enqueueFrame(raw);
 }
 
-motor_interface::socketcan_frame_t socketcan::SocketcanController::toDriverFrame(
+socketcan::socketcan_frame_t socketcan::SocketcanController::toDriverFrame(
     const can_frame& frame) const
 {
-    motor_interface::socketcan_frame_t driver_frame{};
+    socketcan_frame_t driver_frame{};
     driver_frame.can_id = (frame.can_id & CAN_EFF_FLAG) ?
         (frame.can_id & CAN_EFF_MASK) :
         (frame.can_id & CAN_SFF_MASK);
