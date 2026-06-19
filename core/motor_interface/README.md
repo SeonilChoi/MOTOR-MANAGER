@@ -2,19 +2,13 @@
 
 ## English Version
 
-`motor_interface` provides the C++ abstraction layer used for motor control.
-It is composed of `MotorMaster`, `MotorController`, and `MotorDriver`.
+`motor_interface` provides the C++ abstraction layer used for motor control. It is composed of `MotorMaster`, `MotorController`, and `MotorDriver`.
 
-`MotorMaster` represents a fieldbus master, `MotorController` represents one
-slave or node connected to that master, and `MotorDriver` separates
-vendor-specific hardware logic from the controller. Transport-specific driver
-hooks, such as `serial::SerialDriver` and `socketcan::SocketcanDriver`, are
-implemented outside this core abstraction.
+`MotorMaster` represents a fieldbus master, `MotorController` represents one slave or node connected to that master, and `MotorDriver` separates vendor-specific hardware logic from the controller. Transport-specific driver hooks, such as `serial::SerialDriver` and `socketcan::SocketcanDriver`, are implemented outside this core abstraction.
 
 ### Build
 
-`motor_interface` is an internal interface library of the `motor_manager`
-package.
+`motor_interface` is an internal interface library of the `motor_manager` package.
 
 ```bash
 colcon build --packages-select motor_manager
@@ -34,8 +28,7 @@ colcon build --packages-select motor_manager
 
 ##### `master_config_t`
 
-`master_config_t` is used to initialize a master and stores master-specific
-configuration.
+`master_config_t` is used to initialize a master and stores master-specific configuration.
 
 | Name | Type | Meaning | Default |
 | --- | --- | --- | --- |
@@ -63,8 +56,7 @@ configuration.
 
 #### `MotorController`
 
-`MotorController` holds one slave or node, and each controller owns one master
-and one driver.
+`MotorController` holds one slave or node, and each controller owns one master and one driver.
 
 ##### `MAX_CONTROLLER_SIZE`
 
@@ -74,8 +66,7 @@ and one driver.
 
 ##### `slave_config_t`
 
-`slave_config_t` is used to initialize a controller and stores
-controller-specific configuration.
+`slave_config_t` is used to initialize a controller and stores controller-specific configuration.
 
 | Name | Type | Meaning | Default |
 | --- | --- | --- | --- |
@@ -107,8 +98,7 @@ controller-specific configuration.
 
 #### `MotorDriver`
 
-`MotorDriver` holds hardware information and separates vendor-provided
-hardware control logic from `MotorController`.
+`MotorDriver` holds hardware information and separates vendor-provided hardware control logic from `MotorController`.
 
 ##### `MAX_DRIVER_SIZE`
 
@@ -118,8 +108,7 @@ hardware control logic from `MotorController`.
 
 ##### `entry_table_t`
 
-`entry_table_t` stores information for an item configured on the motor or an
-interface registered for communication.
+`entry_table_t` stores information for an item configured on the motor or an interface registered for communication.
 
 | Name | Type | Meaning | Default |
 | --- | --- | --- | --- |
@@ -171,14 +160,11 @@ interface registered for communication.
 
 `DriverState` is an enum class that stores the current driver state.
 
-It contains the following values:
-`Fault`, `SwitchOnDisabled`, `ReadyToSwitchOn`, `SwitchedOn`,
-`OperationEnabled`.
+It contains the following values: `Fault`, `SwitchOnDisabled`, `ReadyToSwitchOn`, `SwitchedOn`, `OperationEnabled`.
 
 ##### `driver_config_t`
 
-`driver_config_t` stores vendor-provided hardware information and is used when
-initializing a driver.
+`driver_config_t` stores vendor-provided hardware information and is used when initializing a driver.
 
 | Name | Type | Meaning | Default |
 | --- | --- | --- | --- |
@@ -220,20 +206,15 @@ initializing a driver.
 | `profile_effort_value()` | Return the value used to set profile effort mode. |
 
 > [!NOTE]
-> An `item` is an entry used to configure a motor during initialization, such as
-> through SDO. An `interface` is an entry that is continuously transmitted or
-> received, such as through PDO.
+> An `item` is an entry used to configure a motor during initialization, such as through SDO. An `interface` is an entry that is continuously transmitted or received, such as through PDO.
 
 ## Korean Version
 
-`motor_interface`는 모터 제어를 위한 C++ 추상화 계층이다.
-`MotorMaster`, `MotorController`, `MotorDriver`로 구성된다.
+`motor_interface`는 모터 제어를 위한 C++ 추상화 계층이다. `MotorMaster`, `MotorController`, `MotorDriver`로 구성된다.
 
-`MotorMaster`는 필드버스 마스터를 의미하고, `MotorController`는 해당
-마스터에 연결된 하나의 슬레이브 혹은 노드를 의미한다. `MotorDriver`는
-제조사가 제공하는 하드웨어 제어 로직을 `MotorController`와 분리하는
-역할을 한다. `serial::SerialDriver`, `socketcan::SocketcanDriver` 같은
-통신 방식별 드라이버 훅은 이 core 추상화 밖에서 구현한다.
+`MotorMaster`는 필드버스 마스터를 의미하고, `MotorController`는 해당 마스터에 연결된 하나의 슬레이브 혹은 노드를 의미한다. `MotorDriver`는 제조사가 제공하는 하드웨어 제어 로직을 `MotorController`와 분리하는 역할을 한다.
+
+`serial::SerialDriver`, `socketcan::SocketcanDriver` 같은 통신 방식별 드라이버 훅은 이 core 추상화 밖에서 구현한다.
 
 ### Build
 
@@ -285,8 +266,7 @@ colcon build --packages-select motor_manager
 
 #### `MotorController`
 
-`MotorController`는 슬레이브 혹은 노드를 담으며, 하나의 마스터와 하나의
-드라이버를 갖는다.
+`MotorController`는 슬레이브 혹은 노드를 담으며, 하나의 마스터와 하나의 드라이버를 갖는다.
 
 ##### `MAX_CONTROLLER_SIZE`
 
@@ -328,8 +308,7 @@ colcon build --packages-select motor_manager
 
 #### `MotorDriver`
 
-`MotorDriver`는 하드웨어 정보를 담으며, 제조사가 제공하는 하드웨어 제어
-로직을 `MotorController`와 분리하는 역할을 한다.
+`MotorDriver`는 하드웨어 정보를 담으며, 제조사가 제공하는 하드웨어 제어 로직을 `MotorController`와 분리하는 역할을 한다.
 
 ##### `MAX_DRIVER_SIZE`
 
@@ -339,8 +318,7 @@ colcon build --packages-select motor_manager
 
 ##### `entry_table_t`
 
-`entry_table_t`는 모터에 설정할 아이템이나 등록한 인터페이스의 정보를 담는
-인터페이스이다.
+`entry_table_t`는 모터에 설정할 아이템이나 등록한 인터페이스의 정보를 담는 인터페이스이다.
 
 | Name | Type | Meaning | Default |
 | --- | --- | --- | --- |
@@ -392,14 +370,11 @@ colcon build --packages-select motor_manager
 
 `DriverState`는 현재 드라이버 상태를 담는 enum class이다.
 
-구성은 아래와 같다:
-`Fault`, `SwitchOnDisabled`, `ReadyToSwitchOn`, `SwitchedOn`,
-`OperationEnabled`.
+구성은 아래와 같다: `Fault`, `SwitchOnDisabled`, `ReadyToSwitchOn`, `SwitchedOn`, `OperationEnabled`.
 
 ##### `driver_config_t`
 
-`driver_config_t`는 제조사에서 제공하는 하드웨어 정보를 담고 있으며, 드라이버
-초기화 시 사용된다.
+`driver_config_t`는 제조사에서 제공하는 하드웨어 정보를 담고 있으며, 드라이버 초기화 시 사용된다.
 
 | Name | Type | Meaning | Default |
 | --- | --- | --- | --- |
@@ -441,6 +416,4 @@ colcon build --packages-select motor_manager
 | `profile_effort_value()` | 프로파일 힘 모드 설정을 위한 값을 반환한다. |
 
 > [!NOTE]
-> `item`은 SDO 등을 활용해 초기화 단계에서 모터를 설정하는 데 필요한
-> 엔트리를 의미하며, `interface`는 PDO 등을 활용해 지속적으로 송수신할
-> 엔트리를 의미한다.
+> `item`은 SDO 등을 활용해 초기화 단계에서 모터를 설정하는 데 필요한 엔트리를 의미하며, `interface`는 PDO 등을 활용해 지속적으로 송수신할 엔트리를 의미한다.
