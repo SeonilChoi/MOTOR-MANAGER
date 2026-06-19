@@ -264,6 +264,8 @@ colcon build --packages-select motor_manager
 | `id()` | 마스터 ID를 반환한다. |
 | `number_of_slaves()` | 마스터가 가진 슬레이브 수를 반환한다. |
 
+---
+
 #### `MotorController`
 
 `MotorController`는 슬레이브 혹은 노드를 담으며, 하나의 마스터와 하나의 드라이버를 갖는다.
@@ -305,6 +307,8 @@ colcon build --packages-select motor_manager
 | `registerEntries()` | 아이템과 인터페이스를 등록한다. |
 | `writeData(rx_interfaces, number_of_rx_interfaces)` | 등록된 인터페이스에 데이터를 쓴다. |
 | `readData(tx_interfaces, number_of_tx_interfaces)` | 등록된 인터페이스의 데이터를 읽는다. |
+
+---
 
 #### `MotorDriver`
 
