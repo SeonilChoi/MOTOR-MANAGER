@@ -14,7 +14,7 @@ bool isRxField(uint8_t id)
 {
     return id == motor_interface::ID_TARGET_POSITION ||
            id == motor_interface::ID_TARGET_VELOCITY ||
-           id == motor_interface::ID_TARGET_TORQUE ||
+           id == motor_interface::ID_TARGET_EFFORT ||
            id == motor_interface::ID_TARGET_KP ||
            id == motor_interface::ID_TARGET_KD;
 }
@@ -25,7 +25,7 @@ bool isTxField(uint8_t id)
            id == motor_interface::ID_ERRORCODE ||
            id == motor_interface::ID_CURRENT_POSITION ||
            id == motor_interface::ID_CURRENT_VELOCITY ||
-           id == motor_interface::ID_CURRENT_TORQUE ||
+           id == motor_interface::ID_CURRENT_EFFORT ||
            id == motor_interface::ID_CURRENT_TEMPERATURE;
 }
 
@@ -58,6 +58,12 @@ void setFrameBytes(socketcan::socketcan_frame_t& frame, const uint8_t (&bytes)[8
 }
 
 constexpr uint32_t CUBEMARS_EXTENDED_STATUS_BASE = 0x2900;
+constexpr double DEGREE_SCALE = 57.29577951308232;
+
+constexpr double degrees(double value)
+{
+    return value * DEGREE_SCALE;
+}
 
 bool isExtendedServoStatusFrame(uint8_t node_id, const socketcan::socketcan_frame_t& frame)
 {
@@ -189,7 +195,7 @@ double cubemars::CubemarsDriver::velocity(const int32_t value)
            static_cast<double>(params_.axis_direction);
 }
 
-double cubemars::CubemarsDriver::torque(const int16_t value)
+double cubemars::CubemarsDriver::effort(const int16_t value)
 {
     return uintToFloat(value, params_.t_min, params_.t_max, 12) *
            static_cast<double>(params_.axis_direction);
@@ -213,7 +219,7 @@ int32_t cubemars::CubemarsDriver::velocity(const double value)
         12);
 }
 
-int16_t cubemars::CubemarsDriver::torque(const double value)
+int16_t cubemars::CubemarsDriver::effort(const double value)
 {
     return static_cast<int16_t>(floatToUint(
         value * static_cast<double>(params_.axis_direction),
@@ -249,18 +255,18 @@ bool cubemars::CubemarsDriver::encodeSocketcanCommand(
     const bool use_velocity =
         rxFieldEnabled(motor_interface::ID_TARGET_VELOCITY) &&
         targetRequested(command, motor_interface::ID_TARGET_VELOCITY);
-    const bool use_torque =
-        rxFieldEnabled(motor_interface::ID_TARGET_TORQUE) &&
-        targetRequested(command, motor_interface::ID_TARGET_TORQUE);
+    const bool use_effort =
+        rxFieldEnabled(motor_interface::ID_TARGET_EFFORT) &&
+        targetRequested(command, motor_interface::ID_TARGET_EFFORT);
 
     const double direction = static_cast<double>(params_.axis_direction);
     const double position = use_position ?
         clampRange(command.position, config_.lower, config_.upper) : 0.0;
     const double velocity = use_velocity ? clampAbs(command.velocity, config_.speed) : 0.0;
-    const double torque = use_torque ? clampAbs(command.effort, config_.rated_torque) : 0.0;
+    const double effort = use_effort ? clampAbs(command.effort, config_.rated_effort) : 0.0;
     const double p_des = position * direction;
     const double v_des = velocity * direction;
-    const double tau_ff = torque * direction;
+    const double tau_ff = effort * direction;
     const double kp = rxFieldEnabled(motor_interface::ID_TARGET_KP) && use_position ?
         default_kp_ : 0.0;
     const double kd = rxFieldEnabled(motor_interface::ID_TARGET_KD) && (use_position || use_velocity) ?
@@ -315,7 +321,7 @@ bool cubemars::CubemarsDriver::decodeSocketcanStatus(
         if (txFieldEnabled(motor_interface::ID_CURRENT_VELOCITY)) {
             status.velocity = static_cast<double>(v_int) * servo_velocity_scale_ * direction;
         }
-        if (txFieldEnabled(motor_interface::ID_CURRENT_TORQUE)) {
+        if (txFieldEnabled(motor_interface::ID_CURRENT_EFFORT)) {
             status.effort = static_cast<double>(i_int) * servo_current_scale_ * direction;
         }
 
@@ -338,7 +344,7 @@ bool cubemars::CubemarsDriver::decodeSocketcanStatus(
     if (txFieldEnabled(motor_interface::ID_CURRENT_VELOCITY)) {
         status.velocity = uintToFloat(v_int, params_.v_min, params_.v_max, 12) * direction;
     }
-    if (txFieldEnabled(motor_interface::ID_CURRENT_TORQUE)) {
+    if (txFieldEnabled(motor_interface::ID_CURRENT_EFFORT)) {
         status.effort = uintToFloat(t_int, params_.t_min, params_.t_max, 12) * direction;
     }
 
@@ -350,30 +356,70 @@ bool cubemars::CubemarsDriver::decodeSocketcanStatus(
 void cubemars::CubemarsDriver::applyMotorTypeDefaults(const std::string& motor_type)
 {
     if (motor_type == "AK80_6_V1") {
-        params_ = mit_params_t{-95.5, 95.5, -45.0, 45.0, -18.0, 18.0, 0.0, 500.0, 0.0, 5.0, -1};
+        params_ = mit_params_t{
+            -degrees(95.5), degrees(95.5),
+            -degrees(45.0), degrees(45.0),
+            -18.0, 18.0,
+            0.0, 500.0, 0.0, 5.0, -1};
     } else if (motor_type == "AK80_6_V1p1") {
-        params_ = mit_params_t{-12.5, 12.5, -22.5, 22.5, -12.0, 12.0, 0.0, 500.0, 0.0, 5.0, -1};
+        params_ = mit_params_t{
+            -degrees(12.5), degrees(12.5),
+            -degrees(22.5), degrees(22.5),
+            -12.0, 12.0,
+            0.0, 500.0, 0.0, 5.0, -1};
     } else if (motor_type == "AK80_6_V2") {
-        params_ = mit_params_t{-12.5, 12.5, -38.2, 38.2, -12.0, 12.0, 0.0, 500.0, 0.0, 5.0, 1};
+        params_ = mit_params_t{
+            -degrees(12.5), degrees(12.5),
+            -degrees(38.2), degrees(38.2),
+            -12.0, 12.0,
+            0.0, 500.0, 0.0, 5.0, 1};
     } else if (motor_type == "AK80_9_V1p1") {
-        params_ = mit_params_t{-12.5, 12.5, -22.5, 22.5, -18.0, 18.0, 0.0, 500.0, 0.0, 5.0, 1};
+        params_ = mit_params_t{
+            -degrees(12.5), degrees(12.5),
+            -degrees(22.5), degrees(22.5),
+            -18.0, 18.0,
+            0.0, 500.0, 0.0, 5.0, 1};
     } else if (motor_type == "AK80_9_V2") {
-        params_ = mit_params_t{-12.5, 12.5, -25.64, 25.64, -18.0, 18.0, 0.0, 500.0, 0.0, 5.0, 1};
+        params_ = mit_params_t{
+            -degrees(12.5), degrees(12.5),
+            -degrees(25.64), degrees(25.64),
+            -18.0, 18.0,
+            0.0, 500.0, 0.0, 5.0, 1};
     } else if (motor_type == "AK70_10_V1p1" || motor_type == "AK70_10V1p1") {
-        params_ = mit_params_t{-12.5, 12.5, -50.0, 50.0, -25.0, 25.0, 0.0, 500.0, 0.0, 5.0, 1};
+        params_ = mit_params_t{
+            -degrees(12.5), degrees(12.5),
+            -degrees(50.0), degrees(50.0),
+            -25.0, 25.0,
+            0.0, 500.0, 0.0, 5.0, 1};
     } else if (motor_type == "AK10_9_V1p1") {
-        params_ = mit_params_t{-12.5, 12.5, -50.0, 50.0, -65.0, 65.0, 0.0, 500.0, 0.0, 5.0, 1};
+        params_ = mit_params_t{
+            -degrees(12.5), degrees(12.5),
+            -degrees(50.0), degrees(50.0),
+            -65.0, 65.0,
+            0.0, 500.0, 0.0, 5.0, 1};
     } else if (motor_type == "AK60_6_V2p2") {
-        params_ = mit_params_t{-12.5, 12.5, -45.0, 45.0, -15.0, 15.0, 0.0, 500.0, 0.0, 5.0, 1};
+        params_ = mit_params_t{
+            -degrees(12.5), degrees(12.5),
+            -degrees(45.0), degrees(45.0),
+            -15.0, 15.0,
+            0.0, 500.0, 0.0, 5.0, 1};
     } else if (motor_type == "AK45_36_KV80" ||
                motor_type == "AK45-36_KV80" ||
                motor_type == "AK45-36-KV80" ||
                motor_type == "AK45_36" ||
                motor_type == "AK45-36")
     {
-        params_ = mit_params_t{-12.5, 12.5, -22.5, 22.5, -12.0, 12.0, 0.0, 500.0, 0.0, 5.0, -1};
+        params_ = mit_params_t{
+            -degrees(12.5), degrees(12.5),
+            -degrees(22.5), degrees(22.5),
+            -12.0, 12.0,
+            0.0, 500.0, 0.0, 5.0, -1};
     } else if (motor_type == "AK10_30" || motor_type == "AK10_30_cubemars") {
-        params_ = mit_params_t{-12.5, 12.5, -45.0, 45.0, -18.0, 18.0, 0.0, 500.0, 0.0, 5.0, 1};
+        params_ = mit_params_t{
+            -degrees(12.5), degrees(12.5),
+            -degrees(45.0), degrees(45.0),
+            -18.0, 18.0,
+            0.0, 500.0, 0.0, 5.0, 1};
     } else {
         throw std::runtime_error("Unsupported CubeMars motor_type.");
     }

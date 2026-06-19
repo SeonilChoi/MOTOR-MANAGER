@@ -40,19 +40,19 @@ inline constexpr uint8_t MAX_ITEM_SIZE = 32;
 inline constexpr uint8_t ID_CONTROLWORD      = 0;
 inline constexpr uint8_t ID_TARGET_POSITION  = 1;
 inline constexpr uint8_t ID_TARGET_VELOCITY  = 2;
-inline constexpr uint8_t ID_TARGET_TORQUE    = 3;
+inline constexpr uint8_t ID_TARGET_EFFORT    = 3;
 inline constexpr uint8_t ID_STATUSWORD       = 4;
 inline constexpr uint8_t ID_ERRORCODE        = 5;
 inline constexpr uint8_t ID_CURRENT_POSITION = 6;
 inline constexpr uint8_t ID_CURRENT_VELOCITY = 7;
-inline constexpr uint8_t ID_CURRENT_TORQUE   = 8;
+inline constexpr uint8_t ID_CURRENT_EFFORT   = 8;
 inline constexpr uint8_t ID_TARGET_KP        = 9;
 inline constexpr uint8_t ID_TARGET_KD        = 10;
 inline constexpr uint8_t ID_CURRENT_TEMPERATURE = 11;
 
 inline constexpr uint8_t ID_OPERATING_MODE = 30;
 
-inline constexpr uint8_t ID_MAX_TORQUE           = 50;
+inline constexpr uint8_t ID_MAX_EFFORT           = 50;
 inline constexpr uint8_t ID_MIN_POSITION_LIMIT   = 51;
 inline constexpr uint8_t ID_MAX_POSITION_LIMIT   = 52;
 inline constexpr uint8_t ID_MAX_MOTOR_SPEED      = 53;
@@ -63,7 +63,6 @@ inline constexpr uint8_t ID_MAX_ACCELERATION     = 57;
 inline constexpr uint8_t ID_MAX_DECELERATION     = 58;
 inline constexpr uint8_t ID_RXPDO                = 98;
 inline constexpr uint8_t ID_TXPDO                = 99;
-
 
 
 enum class DriverState {
@@ -77,8 +76,8 @@ enum class DriverState {
 struct driver_config_t {
     uint8_t id;
     uint32_t pulse_per_revolution;
-    double rated_torque;
-    double unit_torque;
+    double rated_effort;
+    double unit_effort;
     double lower;
     double upper;
     double speed;
@@ -89,10 +88,8 @@ struct driver_config_t {
     double profile_deceleration;
     int8_t profile_position_value;
     int8_t profile_velocity_value;
-    int8_t profile_torque_value;
+    int8_t profile_effort_value;
 };
-
-
 
 inline DataType toDataType(const std::string& type) {
     if (type == "u8") return DataType::U8;
@@ -145,13 +142,13 @@ public:
 
     virtual double velocity(const int32_t value) = 0;
 
-    virtual double torque(const int16_t value) = 0;
+    virtual double effort(const int16_t value) = 0;
 
     virtual int32_t position(const double value) = 0;
 
     virtual int32_t velocity(const double value) = 0;
 
-    virtual int16_t torque(const double value) = 0;
+    virtual int16_t effort(const double value) = 0;
 
     const entry_table_t* items() const { return items_; }
 
@@ -169,7 +166,7 @@ public:
 
     int8_t profile_velocity_value() const { return config_.profile_velocity_value; }
 
-    int8_t profile_torque_value() const { return config_.profile_torque_value; }
+    int8_t profile_effort_value() const { return config_.profile_effort_value; }
 
 protected:
     entry_table_t items_[MAX_ITEM_SIZE];

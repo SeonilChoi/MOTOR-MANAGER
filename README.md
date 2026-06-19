@@ -95,19 +95,19 @@ drivers:
   - id: 0
     type: zeroerr
     pulse_per_revolution: 524288
-    rated_torque: 52.0
-    unit_torque: 0.1
-    lower: -1.0
-    upper: 1.0
+    rated_effort: 52.0
+    unit_effort: 0.1
+    lower: -57.2957795131
+    upper: 57.2957795131
     speed: 3000
-    acceleration: 2.5
-    deceleration: 2.5
-    profile_velocity: 2.5
-    profile_acceleration: 2.5
-    profile_deceleration: 2.5
+    acceleration: 143.2394487827
+    deceleration: 143.2394487827
+    profile_velocity: 143.2394487827
+    profile_acceleration: 143.2394487827
+    profile_deceleration: 143.2394487827
     profile_position_value: 1
     profile_velocity_value: 3
-    profile_torque_value: 4
+    profile_effort_value: 4
     param_file: ../param
 ```
 
@@ -117,7 +117,7 @@ drivers:
 | --- | --- |
 | `0` | Profile position |
 | `1` | Profile velocity |
-| `2` | Profile torque |
+| `2` | Profile effort |
 
 For each driver, `param_file` can point to a YAML file or to a directory. YAML files are loaded directly; directories load `<param_file>/<type>.yaml`. Relative paths are resolved from the main config file.
 

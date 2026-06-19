@@ -248,8 +248,8 @@ void motor_manager::MotorManager::loadConfigurations(const std::string& config_f
         motor_interface::driver_config_t d_cfg{};
         d_cfg.id = d["id"].as<uint8_t>();
         d_cfg.pulse_per_revolution = d["pulse_per_revolution"].as<uint32_t>();
-        d_cfg.rated_torque = d["rated_torque"].as<double>();
-        d_cfg.unit_torque = d["unit_torque"].as<double>();
+        d_cfg.rated_effort = d["rated_effort"].as<double>();
+        d_cfg.unit_effort = d["unit_effort"].as<double>();
         d_cfg.lower = d["lower"].as<double>();
         d_cfg.upper = d["upper"].as<double>();
         d_cfg.speed = d["speed"].as<double>();
@@ -260,7 +260,7 @@ void motor_manager::MotorManager::loadConfigurations(const std::string& config_f
         d_cfg.profile_deceleration = d["profile_deceleration"].as<double>();
         d_cfg.profile_position_value = d["profile_position_value"].as<int8_t>();
         d_cfg.profile_velocity_value = d["profile_velocity_value"].as<int8_t>();
-        d_cfg.profile_torque_value = d["profile_torque_value"].as<int8_t>();
+        d_cfg.profile_effort_value = d["profile_effort_value"].as<int8_t>();
 
         switch (toDriverType(d["type"].as<std::string>())) {
         case DriverType::Minas: {

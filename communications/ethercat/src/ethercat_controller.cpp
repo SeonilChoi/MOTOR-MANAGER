@@ -110,11 +110,11 @@ void ethercat::EthercatController::write(const motor_interface::motor_frame_t& c
             rx_interfaces[i].type = motor_interface::DataType::S32;
             rx_interfaces[i].size = 4;
             motor_interface::fill<int32_t>(driver_->velocity(command.velocity), rx_interfaces[i].data);
-        } else if (id == motor_interface::ID_TARGET_TORQUE) {
+        } else if (id == motor_interface::ID_TARGET_EFFORT) {
             rx_interfaces[i].id = id;
             rx_interfaces[i].type = motor_interface::DataType::S16;
             rx_interfaces[i].size = 2;
-            motor_interface::fill<int16_t>(driver_->torque(command.effort), rx_interfaces[i].data);
+            motor_interface::fill<int16_t>(driver_->effort(command.effort), rx_interfaces[i].data);
         } else {
             throw std::runtime_error("Invalid RX interface ID.");
         }
@@ -138,8 +138,8 @@ void ethercat::EthercatController::read(motor_interface::motor_frame_t& status)
             status.position = driver_->position(value);
         } else if (e.id == motor_interface::ID_CURRENT_VELOCITY) {
             status.velocity = driver_->velocity(motor_interface::value<int32_t>(e.data));
-        } else if (e.id == motor_interface::ID_CURRENT_TORQUE) {
-            status.effort = driver_->torque(motor_interface::value<int16_t>(e.data));
+        } else if (e.id == motor_interface::ID_CURRENT_EFFORT) {
+            status.effort = driver_->effort(motor_interface::value<int16_t>(e.data));
         } else {
             throw std::runtime_error("Invalid TX interface ID.");
         }
@@ -282,7 +282,7 @@ void ethercat::EthercatController::addSlaveConfigSdos()
                 } else if (profile_mode_ == 1) {
                     value = static_cast<int8_t>(driver_->profile_velocity_value());
                 } else if (profile_mode_ == 2) {
-                    value = static_cast<int8_t>(driver_->profile_torque_value());
+                    value = static_cast<int8_t>(driver_->profile_effort_value());
                 }
             }
             ecrt_slave_config_sdo8(slave_config_, items[i].index, items[i].subindex, value);
@@ -323,11 +323,11 @@ void ethercat::EthercatController::addSlaveConfigPdos()
         const motor_interface::entry_table_t& e = interfaces[i + 1];
 
         if (profile_mode_ == 0) {
-            if (e.id == motor_interface::ID_TARGET_VELOCITY || e.id == motor_interface::ID_TARGET_TORQUE) {
+            if (e.id == motor_interface::ID_TARGET_VELOCITY || e.id == motor_interface::ID_TARGET_EFFORT) {
                 continue;
             }
         } else if (profile_mode_ == 1) {
-            if (e.id == motor_interface::ID_TARGET_POSITION || e.id == motor_interface::ID_TARGET_TORQUE) {
+            if (e.id == motor_interface::ID_TARGET_POSITION || e.id == motor_interface::ID_TARGET_EFFORT) {
                 continue;
             }
         } else if (profile_mode_ == 2) {

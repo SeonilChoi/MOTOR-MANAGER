@@ -23,13 +23,13 @@ public:
 
     double velocity(const int32_t value) override;
 
-    double torque(const int16_t value) override;
+    double effort(const int16_t value) override;
 
     int32_t position(const double value) override;
 
     int32_t velocity(const double value) override;
 
-    int16_t torque(const double value) override;
+    int16_t effort(const double value) override;
 };
 
 } // namespace minas

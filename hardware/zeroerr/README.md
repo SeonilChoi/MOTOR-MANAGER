@@ -7,7 +7,7 @@ ZeroErr driver mapping for `motor_manager`.
 - YAML loading for ZeroErr SDO items and PDO interfaces
 - CiA402-style enable/disable state transitions
 - set-point acknowledge handling
-- raw/physical unit conversion for position, velocity, and torque
+- raw/physical unit conversion for position, velocity, and effort
 
 Select this driver with:
 
@@ -26,11 +26,11 @@ The following `driver_config_t` fields are substituted into YAML items when matc
 
 | Semantic ID | Value source | Conversion |
 | --- | --- | --- |
-| `ID_MIN_POSITION_LIMIT` | `lower` | radians to encoder counts. |
-| `ID_MAX_POSITION_LIMIT` | `upper` | radians to encoder counts. |
-| `ID_PROFILE_VELOCITY` | `profile_velocity` | rad/s to counts. |
-| `ID_PROFILE_ACCELERATION` | `profile_acceleration` | rad/s^2 to counts. |
-| `ID_PROFILE_DECELERATION` | `profile_deceleration` | rad/s^2 to counts. |
+| `ID_MIN_POSITION_LIMIT` | `lower` | degrees to encoder counts. |
+| `ID_MAX_POSITION_LIMIT` | `upper` | degrees to encoder counts. |
+| `ID_PROFILE_VELOCITY` | `profile_velocity` | degree/s to counts. |
+| `ID_PROFILE_ACCELERATION` | `profile_acceleration` | degree/s^2 to counts. |
+| `ID_PROFILE_DECELERATION` | `profile_deceleration` | degree/s^2 to counts. |
 
 Other YAML item values are copied according to their declared `type`.
 
@@ -49,7 +49,7 @@ interfaces:
   - { id: 4, index: 0x6041, subindex: 0x00, size: 2, type: u16 }
 ```
 
-`ID_RXPDO` (`98`) and `ID_TXPDO` (`99`) are marker rows. Other rows become PDO entries. RX entries are counted when `id <= ID_TARGET_TORQUE`; remaining entries are counted as TX entries.
+`ID_RXPDO` (`98`) and `ID_TXPDO` (`99`) are marker rows. Other rows become PDO entries. RX entries are counted when `id <= ID_TARGET_EFFORT`; remaining entries are counted as TX entries.
 
 ## Runtime behavior
 
@@ -59,9 +59,9 @@ interfaces:
 | `isEnabled(data, driver_state, out)` | Advances the CiA402 state machine from `Fault` through `OperationEnabled`. |
 | `isDisabled(data, driver_state, out)` | Writes the current disable command until `SwitchOnDisabled` is reached. |
 | `isReceived(data, out)` | When set-point acknowledge is present, writes `0x102F` to `out` and returns `true`. |
-| `position(int32_t)` / `position(double)` | Converts encoder counts to radians and radians to counts. |
-| `velocity(int32_t)` / `velocity(double)` | Converts count-based velocity to rad/s and rad/s to counts. |
-| `torque(int16_t)` / `torque(double)` | Converts raw torque to Nm and Nm to raw torque. |
+| `position(int32_t)` / `position(double)` | Converts encoder counts to degrees and degrees to counts. |
+| `velocity(int32_t)` / `velocity(double)` | Converts count-based velocity to degree/s and degree/s to counts. |
+| `effort(int16_t)` / `effort(double)` | Converts raw effort to Nm and Nm to raw effort. |
 
 ## Controlword values
 

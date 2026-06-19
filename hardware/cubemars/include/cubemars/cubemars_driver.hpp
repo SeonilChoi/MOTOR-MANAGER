@@ -28,13 +28,13 @@ public:
 
     double velocity(const int32_t value) override;
 
-    double torque(const int16_t value) override;
+    double effort(const int16_t value) override;
 
     int32_t position(const double value) override;
 
     int32_t velocity(const double value) override;
 
-    int16_t torque(const double value) override;
+    int16_t effort(const double value) override;
 
     bool encodeSocketcanEnable(uint8_t node_id, socketcan::socketcan_frame_t& frame) const override;
 
@@ -95,9 +95,9 @@ private:
 
     double default_kd_{0.0};
 
-    double servo_position_scale_{0.0003834951969714103};
+    double servo_position_scale_{0.0219726562};
 
-    double servo_velocity_scale_{0.001};
+    double servo_velocity_scale_{0.0572957795};
 
     double servo_current_scale_{0.01};
 };

@@ -12,7 +12,9 @@
 
 namespace {
 
-constexpr double TWO_PI = 2.0 * M_PI;
+constexpr double DEGREE_PER_REVOLUTION = 360.0;
+constexpr double RAD_TO_DEG = 180.0 / M_PI;
+constexpr double DEG_TO_RAD = M_PI / 180.0;
 constexpr double DXL_ACCEL_REV_PER_MIN2_PER_UNIT = 214.577;
 
 std::string trim(const std::string& value)
@@ -37,10 +39,10 @@ std::vector<std::string> splitTabs(const std::string& line)
     return parts;
 }
 
-uint32_t accelerationRawFromRadPerSec2(double value)
+uint32_t accelerationRawFromDegreePerSec2(double value)
 {
     if (value <= 0.0) return 0;
-    const double rev_per_min2 = value * 3600.0 / TWO_PI;
+    const double rev_per_min2 = value * 3600.0 / DEGREE_PER_REVOLUTION;
     return static_cast<uint32_t>(std::lround(rev_per_min2 / DXL_ACCEL_REV_PER_MIN2_PER_UNIT));
 }
 
@@ -154,12 +156,12 @@ void dynamixel::DynamixelDriver::loadParameters(const std::string& param_file)
             motor_interface::fill<int32_t>(position(config_.upper), e_cfg.data);
         } else if (e_cfg.id == motor_interface::ID_MAX_MOTOR_SPEED) {
             motor_interface::fill<uint32_t>(
-                static_cast<uint32_t>(std::llround(std::fabs(config_.speed) / velocity_unit_)),
+                static_cast<uint32_t>(std::llround(std::fabs(config_.speed) * DEG_TO_RAD / velocity_unit_)),
                 e_cfg.data
             );
         } else if (e_cfg.id == motor_interface::ID_PROFILE_VELOCITY) {
             motor_interface::fill<uint32_t>(
-                static_cast<uint32_t>(std::llround(std::fabs(config_.profile_velocity) / velocity_unit_)),
+                static_cast<uint32_t>(std::llround(std::fabs(config_.profile_velocity) * DEG_TO_RAD / velocity_unit_)),
                 e_cfg.data
             );
         } else if (e_cfg.id == motor_interface::ID_PROFILE_ACCELERATION ||
@@ -167,9 +169,9 @@ void dynamixel::DynamixelDriver::loadParameters(const std::string& param_file)
         {
             const double value = config_.profile_acceleration > 0.0 ?
                 config_.profile_acceleration : config_.acceleration;
-            motor_interface::fill<uint32_t>(accelerationRawFromRadPerSec2(value), e_cfg.data);
-        } else if (e_cfg.id == motor_interface::ID_MAX_TORQUE) {
-            const int16_t current = torque(config_.rated_torque);
+            motor_interface::fill<uint32_t>(accelerationRawFromDegreePerSec2(value), e_cfg.data);
+        } else if (e_cfg.id == motor_interface::ID_MAX_EFFORT) {
+            const int16_t current = effort(config_.rated_effort);
             if (e_cfg.type == motor_interface::DataType::U16) {
                 motor_interface::fill<uint16_t>(static_cast<uint16_t>(std::max<int16_t>(current, 0)), e_cfg.data);
             } else {
@@ -194,7 +196,7 @@ void dynamixel::DynamixelDriver::loadParameters(const std::string& param_file)
         if (!loadEntry(i, e_cfg, true)) continue;
 
         if (e_cfg.id != motor_interface::ID_RXPDO && e_cfg.id != motor_interface::ID_TXPDO) {
-            if (e_cfg.id <= motor_interface::ID_TARGET_TORQUE) {
+            if (e_cfg.id <= motor_interface::ID_TARGET_EFFORT) {
                 r_idx++;
             } else {
                 t_idx++;
@@ -248,27 +250,27 @@ bool dynamixel::DynamixelDriver::isReceived(const uint8_t* data, uint8_t* out)
 double dynamixel::DynamixelDriver::position(const int32_t value)
 {
     if (has_position_model_) {
-        return (static_cast<double>(value) - zero_position_) * positionUnit();
+        return (static_cast<double>(value) - zero_position_) * positionUnit() * RAD_TO_DEG;
     }
 
-    return static_cast<double>(value) / static_cast<double>(config_.pulse_per_revolution) * TWO_PI;
+    return static_cast<double>(value) / static_cast<double>(config_.pulse_per_revolution) * DEGREE_PER_REVOLUTION;
 }
 
 double dynamixel::DynamixelDriver::velocity(const int32_t value)
 {
-    return static_cast<double>(value) * velocity_unit_;
+    return static_cast<double>(value) * velocity_unit_ * RAD_TO_DEG;
 }
 
-double dynamixel::DynamixelDriver::torque(const int16_t value)
+double dynamixel::DynamixelDriver::effort(const int16_t value)
 {
-    return static_cast<double>(value) * current_unit_ * config_.unit_torque;
+    return static_cast<double>(value) * current_unit_ * config_.unit_effort;
 }
 
 int32_t dynamixel::DynamixelDriver::position(const double value)
 {
     if (has_position_model_) {
         const int32_t raw_position =
-            static_cast<int32_t>(std::lround(zero_position_ + value / positionUnit()));
+            static_cast<int32_t>(std::lround(zero_position_ + value * DEG_TO_RAD / positionUnit()));
         const int32_t min_raw =
             static_cast<int32_t>(std::lround(std::min(min_position_, max_position_)));
         const int32_t max_raw =
@@ -281,18 +283,18 @@ int32_t dynamixel::DynamixelDriver::position(const double value)
         return raw_position;
     }
 
-    return static_cast<int32_t>(std::lround(value / TWO_PI * config_.pulse_per_revolution));
+    return static_cast<int32_t>(std::lround(value / DEGREE_PER_REVOLUTION * config_.pulse_per_revolution));
 }
 
 int32_t dynamixel::DynamixelDriver::velocity(const double value)
 {
     if (velocity_unit_ == 0.0) return 0;
-    return static_cast<int32_t>(std::lround(value / velocity_unit_));
+    return static_cast<int32_t>(std::lround(value * DEG_TO_RAD / velocity_unit_));
 }
 
-int16_t dynamixel::DynamixelDriver::torque(const double value)
+int16_t dynamixel::DynamixelDriver::effort(const double value)
 {
-    const double unit = current_unit_ * config_.unit_torque;
+    const double unit = current_unit_ * config_.unit_effort;
     if (unit == 0.0) return 0;
     return static_cast<int16_t>(std::lround(value / unit));
 }
@@ -422,7 +424,7 @@ double dynamixel::DynamixelDriver::positionUnit() const
     const double raw_range = max_position_ - min_position_;
     const double rad_range = max_radian_ - min_radian_;
     if (raw_range == 0.0 || rad_range == 0.0) {
-        return TWO_PI / static_cast<double>(config_.pulse_per_revolution);
+        return (2.0 * M_PI) / static_cast<double>(config_.pulse_per_revolution);
     }
 
     return rad_range / raw_range;

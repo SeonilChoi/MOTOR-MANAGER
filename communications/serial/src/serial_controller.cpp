@@ -12,12 +12,12 @@ bool isFilteredByProfile(uint8_t id, uint8_t profile_mode)
 {
     if (profile_mode == 0) {
         return id == motor_interface::ID_TARGET_VELOCITY ||
-               id == motor_interface::ID_TARGET_TORQUE;
+               id == motor_interface::ID_TARGET_EFFORT;
     }
 
     if (profile_mode == 1) {
         return id == motor_interface::ID_TARGET_POSITION ||
-               id == motor_interface::ID_TARGET_TORQUE;
+               id == motor_interface::ID_TARGET_EFFORT;
     }
 
     if (profile_mode == 2) {
@@ -211,8 +211,8 @@ void serial::SerialController::write(const motor_interface::motor_frame_t& comma
             fillInterfaceValue(*descriptor, driver_->position(command.position), rx_interfaces[i]);
         } else if (id == motor_interface::ID_TARGET_VELOCITY) {
             fillInterfaceValue(*descriptor, driver_->velocity(command.velocity), rx_interfaces[i]);
-        } else if (id == motor_interface::ID_TARGET_TORQUE) {
-            fillInterfaceValue(*descriptor, driver_->torque(command.effort), rx_interfaces[i]);
+        } else if (id == motor_interface::ID_TARGET_EFFORT) {
+            fillInterfaceValue(*descriptor, driver_->effort(command.effort), rx_interfaces[i]);
         } else {
             throw std::runtime_error("Invalid serial target interface ID.");
         }
@@ -236,8 +236,8 @@ void serial::SerialController::read(motor_interface::motor_frame_t& status)
             status.position = driver_->position(static_cast<int32_t>(readSignedValue(e)));
         } else if (e.id == motor_interface::ID_CURRENT_VELOCITY) {
             status.velocity = driver_->velocity(static_cast<int32_t>(readSignedValue(e)));
-        } else if (e.id == motor_interface::ID_CURRENT_TORQUE) {
-            status.effort = driver_->torque(static_cast<int16_t>(readSignedValue(e)));
+        } else if (e.id == motor_interface::ID_CURRENT_EFFORT) {
+            status.effort = driver_->effort(static_cast<int16_t>(readSignedValue(e)));
         } else {
             throw std::runtime_error("Invalid serial TX interface ID.");
         }
@@ -287,7 +287,7 @@ void serial::SerialController::addSlaveConfigItems()
 
         if (!disabled && node_ && node_->last_packet_error != 0) {
             throw std::runtime_error(formatWriteFailure(
-                "Failed to disable Dynamixel torque before configuration",
+                "Failed to disable Dynamixel effort before configuration",
                 node_id_,
                 *control,
                 node_->last_packet_error));
@@ -306,7 +306,7 @@ void serial::SerialController::addSlaveConfigItems()
             } else if (profile_mode_ == 1) {
                 mode = driver_->profile_velocity_value();
             } else if (profile_mode_ == 2) {
-                mode = driver_->profile_torque_value();
+                mode = driver_->profile_effort_value();
             }
             motor_interface::fill<int8_t>(mode, item.data);
         }

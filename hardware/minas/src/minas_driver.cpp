@@ -1,4 +1,3 @@
-#include <cmath>
 #include <stdexcept>
 
 #include <yaml-cpp/yaml.h>
@@ -6,6 +5,8 @@
 #include "minas/minas_driver.hpp"
 
 namespace {
+
+constexpr double DEGREE_PER_REVOLUTION = 360.0;
 
 constexpr uint16_t CW_SHUTDOWN = 0x0006;
 constexpr uint16_t CW_SWITCH_ON = 0x0007;
@@ -67,19 +68,19 @@ void minas::MinasDriver::loadParameters(const std::string& param_file)
         e_cfg.subindex = i["subindex"].as<uint8_t>();
         e_cfg.type = motor_interface::toDataType(i["type"].as<std::string>());
 
-        if (e_cfg.id == motor_interface::ID_MAX_TORQUE) {
+        if (e_cfg.id == motor_interface::ID_MAX_EFFORT) {
             motor_interface::fill<uint16_t>(
-                static_cast<uint16_t>(2.0 / config_.unit_torque * 100.0),
+                static_cast<uint16_t>(2.0 / config_.unit_effort * 100.0),
                 e_cfg.data
             );
         } else if (e_cfg.id == motor_interface::ID_MIN_POSITION_LIMIT) {
             motor_interface::fill<int32_t>(
-                static_cast<int32_t>(config_.lower / (2 * M_PI) * config_.pulse_per_revolution),
+                static_cast<int32_t>(config_.lower / DEGREE_PER_REVOLUTION * config_.pulse_per_revolution),
                 e_cfg.data
             );
         } else if (e_cfg.id == motor_interface::ID_MAX_POSITION_LIMIT) {
             motor_interface::fill<int32_t>(
-                static_cast<int32_t>(config_.upper / (2 * M_PI) * config_.pulse_per_revolution),
+                static_cast<int32_t>(config_.upper / DEGREE_PER_REVOLUTION * config_.pulse_per_revolution),
                 e_cfg.data
             );
         } else if (e_cfg.id == motor_interface::ID_MAX_MOTOR_SPEED) {
@@ -89,28 +90,28 @@ void minas::MinasDriver::loadParameters(const std::string& param_file)
             );
         } else if (e_cfg.id == motor_interface::ID_PROFILE_VELOCITY) {
             motor_interface::fill<uint32_t>(
-                static_cast<uint32_t>(config_.profile_velocity / (2 * M_PI) * config_.pulse_per_revolution),
+                static_cast<uint32_t>(config_.profile_velocity / DEGREE_PER_REVOLUTION * config_.pulse_per_revolution),
                 e_cfg.data
             );
         } else if (e_cfg.id == motor_interface::ID_PROFILE_ACCELERATION) {
             motor_interface::fill<uint32_t>(
-                static_cast<uint32_t>(config_.profile_acceleration / (2 * M_PI) * config_.pulse_per_revolution),
+                static_cast<uint32_t>(config_.profile_acceleration / DEGREE_PER_REVOLUTION * config_.pulse_per_revolution),
                 e_cfg.data
             );
         } else if (e_cfg.id == motor_interface::ID_PROFILE_DECELERATION) {
             motor_interface::fill<uint32_t>(
-                static_cast<uint32_t>(config_.profile_deceleration / (2 * M_PI) * config_.pulse_per_revolution),
+                static_cast<uint32_t>(config_.profile_deceleration / DEGREE_PER_REVOLUTION * config_.pulse_per_revolution),
                 e_cfg.data
             );
         } else if (e_cfg.id == motor_interface::ID_MAX_ACCELERATION) {
             motor_interface::fill<uint32_t>(
-                static_cast<uint32_t>(config_.acceleration / (2 * M_PI) * config_.pulse_per_revolution),
+                static_cast<uint32_t>(config_.acceleration / DEGREE_PER_REVOLUTION * config_.pulse_per_revolution),
                 //uint32_t(5000000),
                 e_cfg.data
             );
         } else if (e_cfg.id == motor_interface::ID_MAX_DECELERATION) {
             motor_interface::fill<uint32_t>(
-                static_cast<uint32_t>(config_.deceleration / (2 * M_PI) * config_.pulse_per_revolution),
+                static_cast<uint32_t>(config_.deceleration / DEGREE_PER_REVOLUTION * config_.pulse_per_revolution),
                 e_cfg.data
             );
         } else {
@@ -180,7 +181,7 @@ void minas::MinasDriver::loadParameters(const std::string& param_file)
             e_cfg.size = i["size"].as<uint8_t>();
             e_cfg.type = motor_interface::toDataType(i["type"].as<std::string>());
 
-            if (e_cfg.id <= motor_interface::ID_TARGET_TORQUE) {
+            if (e_cfg.id <= motor_interface::ID_TARGET_EFFORT) {
                 r_idx++;
             } else {
                 t_idx++;
@@ -278,30 +279,30 @@ bool minas::MinasDriver::isReceived(const uint8_t* data, uint8_t* out)
 
 double minas::MinasDriver::position(const int32_t value)
 {
-    return static_cast<double>(value) / static_cast<double>(config_.pulse_per_revolution) * (2 * M_PI);
+    return static_cast<double>(value) / static_cast<double>(config_.pulse_per_revolution) * DEGREE_PER_REVOLUTION;
 }
 
 double minas::MinasDriver::velocity(const int32_t value)
 {
-    return static_cast<double>(value) / static_cast<double>(config_.pulse_per_revolution) * (2 * M_PI);
+    return static_cast<double>(value) / static_cast<double>(config_.pulse_per_revolution) * DEGREE_PER_REVOLUTION;
 }
 
-double minas::MinasDriver::torque(const int16_t value)
+double minas::MinasDriver::effort(const int16_t value)
 {
-    return config_.rated_torque * 0.01 * static_cast<double>(value) * config_.unit_torque;
+    return config_.rated_effort * 0.01 * static_cast<double>(value) * config_.unit_effort;
 }
 
 int32_t minas::MinasDriver::position(const double value)
 {
-    return static_cast<int32_t>(value / (2 * M_PI) * config_.pulse_per_revolution);
+    return static_cast<int32_t>(value / DEGREE_PER_REVOLUTION * config_.pulse_per_revolution);
 }
 
 int32_t minas::MinasDriver::velocity(const double value)
 {
-    return static_cast<int32_t>(value / (2 * M_PI) * config_.pulse_per_revolution);
+    return static_cast<int32_t>(value / DEGREE_PER_REVOLUTION * config_.pulse_per_revolution);
 }
 
-int16_t minas::MinasDriver::torque(const double value)
+int16_t minas::MinasDriver::effort(const double value)
 {
-    return static_cast<int16_t>(value / config_.rated_torque * 100 / config_.unit_torque);
+    return static_cast<int16_t>(value / config_.rated_effort * 100 / config_.unit_effort);
 }

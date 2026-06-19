@@ -52,7 +52,7 @@ masters:
 | `position` | EtherCAT ring position. |
 | `vendor_id` | Slave vendor ID. |
 | `product_id` | Slave product code. |
-| `profile_mode` | `0`: position, `1`: velocity, `2`: torque. Used when setting operation mode and filtering target PDOs. |
+| `profile_mode` | `0`: position, `1`: velocity, `2`: effort. Used when setting operation mode and filtering target PDOs. |
 
 ## `EthercatMaster`
 
@@ -79,4 +79,4 @@ masters:
 | `write(command)` | Converts command fields to raw RX PDO entries and writes them into the domain. |
 | `read(status)` | Reads TX PDO entries from the domain, applies driver scaling, and fills `motor_frame_t`. |
 
-The controller supports target IDs `ID_CONTROLWORD`, `ID_TARGET_POSITION`, `ID_TARGET_VELOCITY`, and `ID_TARGET_TORQUE` on writes, and status/error/current position/current velocity/current torque IDs on reads.
+The controller supports target IDs `ID_CONTROLWORD`, `ID_TARGET_POSITION`, `ID_TARGET_VELOCITY`, and `ID_TARGET_EFFORT` on writes, and status/error/current position/current velocity/current effort IDs on reads.

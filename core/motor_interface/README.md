@@ -10,7 +10,7 @@ This library does not talk to hardware directly. Concrete transports implement `
 | --- | --- | --- |
 | `MAX_MASTER_SIZE` | `8` | Maximum configured masters. |
 | `MAX_DRIVER_SIZE` | `8` | Maximum configured drivers. |
-| `MAX_CONTROLLER_SIZE` | `16` | Maximum configured controllers. |
+| `MAX_CONTROLLER_SIZE` | `32` | Maximum configured controllers. |
 | `MAX_DATA_SIZE` | `4` | Maximum bytes stored in `entry_table_t::data`. |
 | `MAX_ITEM_SIZE` | `32` | Maximum SDO/config items per driver. |
 
@@ -29,6 +29,8 @@ Declared in `include/motor_interface/motor_master.hpp`.
 | `ethercat_master_index` | `unsigned int` | EtherCAT | IgH master index passed to `ecrt_request_master`. |
 | `can_interface_index` | `unsigned int` | CANopen | SocketCAN suffix; `0` binds to `can0`. |
 | `can_bitrate` | `unsigned int` | CANopen | Config value retained by the master. Interface bitrate must still be set before launch. |
+| `serial_port` | `std::string` | Serial | Serial device path or port name. |
+| `serial_baudrate` | `unsigned int` | Serial | Serial baudrate. |
 
 ### Virtual functions
 
@@ -41,6 +43,8 @@ Declared in `include/motor_interface/motor_master.hpp`.
 | `receive()` | Receive/process bus data. |
 | `apply_application_time(time)` | Apply cycle timestamp when the bus supports it. |
 | `save_clock()` | Synchronize/save bus clocks when supported. |
+| `id()` | Return the master ID. |
+| `number_of_slaves()` | Return the number of slaves/controllers owned by the master. |
 
 ## `MotorController`
 
@@ -57,12 +61,28 @@ Declared in `include/motor_interface/motor_controller.hpp`.
 | `driver_id` | `uint8_t` | all | Driver ID used for PDO layout and scaling. |
 | `alias` | `uint16_t` | EtherCAT | EtherCAT alias. |
 | `position` | `uint16_t` | EtherCAT | EtherCAT ring position. |
-| `can_id` | `uint8_t` | CANopen / SocketCAN / Serial | Bus node or CAN ID used by the controller. |
 | `vendor_id` | `uint32_t` | EtherCAT | EtherCAT vendor ID. |
 | `product_id` | `uint32_t` | EtherCAT | EtherCAT product code. |
-| `profile_mode` | `int8_t` | all controllers | `0`: position, `1`: velocity, `2`: torque. |
+| `can_id` | `uint8_t` | CANopen / SocketCAN / Serial | Bus node or CAN ID used by the controller. |
+| `profile_mode` | `uint8_t` | all controllers | `0`: position, `1`: velocity, `2`: effort. |
 
 The concrete controller implements `enable`, `disable`, `check`, `write`, and `read` over `motor_frame_t`.
+
+### Virtual functions
+
+| Function | Meaning |
+| --- | --- |
+| `initialize(master, driver)` | Initialize the controller with its master and driver. |
+| `enable()` | Put the motor into the enabled state. |
+| `disable()` | Put the motor into the disabled state. |
+| `check(status)` | Check the current motor status. |
+| `write(command)` | Write a motor command. |
+| `read(status)` | Read motor status. |
+| `master_id()` | Return the owning master ID. |
+| `driver_id()` | Return the driver ID. |
+| `registerEntries()` | Register configured items and interfaces. |
+| `writeData(rx_interfaces, number_of_rx_interfaces)` | Write data to registered RX interfaces. |
+| `readData(tx_interfaces, number_of_tx_interfaces)` | Read data from registered TX interfaces. |
 
 ## `MotorDriver`
 
@@ -76,17 +96,17 @@ Declared in `include/motor_interface/motor_driver.hpp`.
 | --- | --- | --- |
 | `id` | `uint8_t` | Driver ID from `drivers[].id`. |
 | `pulse_per_revolution` | `uint32_t` | Encoder scale for position/velocity conversion. |
-| `rated_torque` | `double` | Rated torque used by torque conversion. |
-| `unit_torque` | `double` | Raw torque unit scale. |
-| `lower` / `upper` | `double` | Software position limits. |
-| `speed` | `double` | Maximum speed parameter. |
-| `acceleration` / `deceleration` | `double` | Maximum acceleration/deceleration parameters. |
-| `profile_velocity` | `double` | Profile velocity parameter. |
-| `profile_acceleration` | `double` | Profile acceleration parameter. |
-| `profile_deceleration` | `double` | Profile deceleration parameter. |
+| `rated_effort` | `double` | Rated torque or force used by effort conversion, typically Nm or N. |
+| `unit_effort` | `double` | Raw effort unit scale. |
+| `lower` / `upper` | `double` | Software position limits, in degree or mm. |
+| `speed` | `double` | Maximum speed parameter, in degree/s or mm/s. |
+| `acceleration` / `deceleration` | `double` | Maximum acceleration/deceleration parameters, in degree/s^2 or mm/s^2. |
+| `profile_velocity` | `double` | Profile velocity parameter, in degree/s or mm/s. |
+| `profile_acceleration` | `double` | Profile acceleration parameter, in degree/s^2 or mm/s^2. |
+| `profile_deceleration` | `double` | Profile deceleration parameter, in degree/s^2 or mm/s^2. |
 | `profile_position_value` | `int8_t` | Operation-mode value for profile position mode. |
 | `profile_velocity_value` | `int8_t` | Operation-mode value for profile velocity mode. |
-| `profile_torque_value` | `int8_t` | Operation-mode value for profile torque mode. |
+| `profile_effort_value` | `int8_t` | Operation-mode value for profile effort mode. |
 
 ### `entry_table_t`
 
@@ -113,6 +133,27 @@ Declared in `include/motor_interface/motor_driver.hpp`.
 | `template <typename T> T value(const uint8_t* data)` | Decodes a little-endian byte buffer. |
 | `template <typename T> void fill(const T& value, uint8_t* data)` | Encodes a value into a little-endian byte buffer. |
 
+### Virtual functions
+
+| Function | Meaning |
+| --- | --- |
+| `loadParameters(param_file)` | Load vendor-specific parameter YAML. |
+| `isEnabled(data, driver_state, out)` | Check whether the motor is enabled and prepare the next output if needed. |
+| `isDisabled(data, driver_state, out)` | Check whether the motor is disabled and prepare the next output if needed. |
+| `isReceived(data, out)` | Check whether the motor accepted the command. |
+| `position(value)` | Convert position between raw driver values and physical units. |
+| `velocity(value)` | Convert velocity between raw driver values and physical units. |
+| `effort(value)` | Convert effort between raw driver values and physical units. |
+| `items()` | Return configured setup items. |
+| `interfaces()` | Return registered process-data interfaces. |
+| `number_of_items()` | Return the number of setup items. |
+| `number_of_interfaces()` | Return the number of registered interfaces. |
+| `number_of_rx_interfaces()` | Return the number of RX interfaces. |
+| `number_of_tx_interfaces()` | Return the number of TX interfaces. |
+| `profile_position_value()` | Return the operation-mode value for profile position mode. |
+| `profile_velocity_value()` | Return the operation-mode value for profile velocity mode. |
+| `profile_effort_value()` | Return the operation-mode value for profile effort mode. |
+
 ## Semantic IDs
 
 These IDs are used by driver YAML files and `motor_frame_t::target_interface_id`.
@@ -122,14 +163,17 @@ These IDs are used by driver YAML files and `motor_frame_t::target_interface_id`
 | `ID_CONTROLWORD` | `0` | Command controlword. |
 | `ID_TARGET_POSITION` | `1` | Target position. |
 | `ID_TARGET_VELOCITY` | `2` | Target velocity. |
-| `ID_TARGET_TORQUE` | `3` | Target torque. |
+| `ID_TARGET_EFFORT` | `3` | Target effort. |
 | `ID_STATUSWORD` | `4` | Statusword. |
 | `ID_ERRORCODE` | `5` | Error code. |
 | `ID_CURRENT_POSITION` | `6` | Actual position. |
 | `ID_CURRENT_VELOCITY` | `7` | Actual velocity. |
-| `ID_CURRENT_TORQUE` | `8` | Actual torque. |
+| `ID_CURRENT_EFFORT` | `8` | Actual effort. |
+| `ID_TARGET_KP` | `9` | Target proportional gain. |
+| `ID_TARGET_KD` | `10` | Target derivative gain. |
+| `ID_CURRENT_TEMPERATURE` | `11` | Actual temperature. |
 | `ID_OPERATING_MODE` | `30` | Operation mode object. |
-| `ID_MAX_TORQUE` | `50` | Max torque parameter. |
+| `ID_MAX_EFFORT` | `50` | Max effort parameter. |
 | `ID_MIN_POSITION_LIMIT` | `51` | Minimum software position limit. |
 | `ID_MAX_POSITION_LIMIT` | `52` | Maximum software position limit. |
 | `ID_MAX_MOTOR_SPEED` | `53` | Maximum motor speed. |
@@ -257,6 +301,87 @@ These IDs are used by driver YAML files and `motor_frame_t::target_interface_id`
 | Name | Type | Meaning | Default |
 | --- | --- | --- | --- |
 | `MAX_ITEM_SIZE` | `uint8_t` | 모터에 설정 가능한 아이템 수의 최대값 | `32` |
+
+### `Entry IDs`
+
+| Name | Type | Meaning | Default |
+| --- | --- | --- | --- |
+| `ID_CONTROLWORD` | `uint8_t` | Entry ID for CiA-402 control word | `0` |
+| `ID_TARGET_POSITION` | `uint8_t` | Entry ID for target position | `1` |
+| `ID_TARGET_VELOCITY` | `uint8_t` | Entry ID for target velocity | `2` |
+| `ID_TARGET_EFFORT` | `uint8_t` | Entry ID for target effort | `3` |
+| `ID_STATUSWORD` | `uint8_t` | Entry ID for CiA-402 status word | `4` |
+| `ID_ERRORCODE` | `uint8_t` | Entry ID for driver error code | `5` |
+| `ID_CURRENT_POSITION` | `uint8_t` | Entry ID for current position | `6` |
+| `ID_CURRENT_VELOCITY` | `uint8_t` | Entry ID for current velocity | `7` |
+| `ID_CURRENT_EFFORT` | `uint8_t` | Entry ID for current velocity | `8` |
+| `ID_CURRENT_TEMPERATURE` | `uint8_t` | Entry ID for current velocity | `9` |
+| `ID_TARGET_KP` | `uint8_t` | Entry ID for current position | `10` |
+| `ID_TARGET_KD` | `uint8_t` | Entry ID for current velocity | `11` |
+| Name | Type | Meaning | Default |
+| `ID_OPERATION_MODE` | `uint8_t` | Entry ID for operation mode | `30` |
+| Name | Type | Meaning | Default |
+| `ID_MAX_EFFORT` | `uint8_t` | Entry ID for max effort | `50` |
+| `ID_MIN_POSITION_LIMIT` | `uint8_t` | Entry ID for min position limit | `51` |
+| `ID_MAX_POSITION_LIMIT` | `uint8_t` | Entry ID for max position limit | `52` |
+| `ID_MAX_MOTOR_SPEED` | `uint8_t` | Entry ID for max motor speed | `53` |
+| `ID_PROFILE_VELOCITY` | `uint8_t` | Entry ID for profile velocity | `54` |
+| `ID_PROFILE_ACCELERATION` | `uint8_t` | Entry ID for profile acceleration | `55` |
+| `ID_PROFILE_DECELERATION` | `uint8_t` | Entry ID for profile deceleration | `56` |
+| `ID_MAX_ACCELERATION` | `uint8_t` | Entry ID for max acceleration | `57` |
+| `ID_MAX_DECELERATION` | `uint8_t` | Entry ID for max deceleration | `58` |
+| Name | Type | Meaning | Default |
+| `ID_RXPDO` | `uint8_t` | Entry ID for RXPDO | `98` |
+| `ID_TXPDO` | `uint8_t` | Entry ID for TXPDO | `99` |
+
+### `DriverState`
+
+`DriverState`는 현재 드라이버 상태를 담는 enum class 이다.
+
+구성은 아래와 같다:
+`Fault`, `SwitchOnDisabled`, `ReadyToSwitchOn`, `SwitchedOn`, `OperationEnabled`
+
+### `driver_config_t`
+
+제조사에서 제공하는 하드웨어 정보를 담고있으며, 드라이버 초기화 시 사용된다.
+
+| Name | Type | Meaning | Default |
+| --- | --- | --- | --- |
+| `id` | `uint8_t` | 드라이버의 ID | `0` |
+| `pulse_per_revolution` | `uint32_t` | 회전 당 펄스 수 | `0` |
+| `rated_effort` | `double` | 정격 토크 혹은 힘 (Nm 혹은 N) | `0` |
+| `unit_effort` | `double` | 1 / 정격 토크 당 단위 | `0` |
+| `lower` | `double` | 최소 제한 위치 (degree 혹은 mm) | `0` |
+| `upper` | `double` | 최대 제한 위치 (degree 혹은 mm) | `0` |
+| `acceleration` | `double` | 제한 가속도 (degree/s^2 혹은 mm/s^2) | `0` |
+| `deceleration` | `double` | 제한 감속도 (degree 혹은 mm) | `0` |
+| `profile_velocity` | `double` | 프로파일 속도 (degree/s 혹은 mm/s) | `0` |
+| `profile_acceleration` | `double` | 프로파일 가속도 (degree/s^2 혹은 mm/s^2) | `0` |
+| `profile_deceleration` | `double` | 프로파일 감속도 (degree/s^2 혹은 mm/s^2) | `0` |
+| `profile_position_value` | `int8_t` | 프로파일 위치 모드 설정 값 | `0` |
+| `profile_velocity_value` | `int8_t` | 프로파일 속도 모드 설정 값 | `0` |
+| `profile_effort_value` | `int8_t` | 프로파일 힘 모드 설정 값 | `0` |
+
+### functions
+
+| Function | Purpose |
+| --- | --- |
+| `loadParameters(param_file)` | 파라미터를 불러온다. |
+| `isEnabled(data, driver_state, out)` | 모터 상태가 `Enable`인지 확인한다. |
+| `isDisabled(data, driver_state, out)` | 모터 상태가 `Disable`인지 확인한다. |
+| `isReceived(data, out)` | 모터가 제어 입력을 잘 받았는지 확인한다. |
+| `position(value)` | 위치 값을 반환한다. |
+| `velocity(value)` | 속도 값을 반환한다. |
+| `effort(value)` | 힘 값을 반환한다. |
+| `items()` | 드라이버에 설정한 아이템을 반환한다. |
+| `interfaces()` | 드라이버에 등록한 인터페이스를 반환한다. |
+| `number_of_items()` | 설정한 아이템 수를 반환한다. |
+| `number_of_interfaces()` | 등록한 인터페이스 수를 반환한다. |
+| `number_of_rx_interfaces()` | 등록한 RX 인터페이스 수를 반환한다. |
+| `number_of_tx_interfaces()` | 등록한 TX 인터페이스 수를 반환한다. |
+| `profile_position_value()` | 프로파일 위치 모드 설정을 위한 값을 반환한다. |
+| `profile_velocity_value()` | 프로파일 속도 모드 설정을 위한 값을 반환한다. |
+| `profile_effort_value()` | 프로파일 힘 모드 설정을 위한 값을 반환한다. |
 
 > [!NOTE]
 > `item`은 SDO등을 활용해 초기화 단계에서 모터를 설정하는데 필요한 엔트리를 의미하며, `interface`는 PDO등을 활용해 지속적으로 송수신할 엔트리를 의미한다.

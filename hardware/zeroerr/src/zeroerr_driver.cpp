@@ -1,4 +1,3 @@
-#include <cmath>
 #include <stdexcept>
 
 #include <yaml-cpp/yaml.h>
@@ -6,6 +5,8 @@
 #include "zeroerr/zeroerr_driver.hpp"
 
 namespace {
+
+constexpr double DEGREE_PER_REVOLUTION = 360.0;
 
 constexpr uint16_t CW_SHUTDOWN = 0x0026;
 constexpr uint16_t CW_SWITCH_ON = 0x0027;
@@ -70,27 +71,27 @@ void zeroerr::ZeroerrDriver::loadParameters(const std::string& param_file)
 
         if (e_cfg.id == motor_interface::ID_MIN_POSITION_LIMIT) {
             motor_interface::fill<int32_t>(
-                static_cast<int32_t>(config_.lower / (2 * M_PI) * config_.pulse_per_revolution),
+                static_cast<int32_t>(config_.lower / DEGREE_PER_REVOLUTION * config_.pulse_per_revolution),
                 e_cfg.data
             );
         } else if (e_cfg.id == motor_interface::ID_MAX_POSITION_LIMIT) {
             motor_interface::fill<int32_t>(
-                static_cast<int32_t>(config_.upper / (2 * M_PI) * config_.pulse_per_revolution),
+                static_cast<int32_t>(config_.upper / DEGREE_PER_REVOLUTION * config_.pulse_per_revolution),
                 e_cfg.data
             );
         } else if (e_cfg.id == motor_interface::ID_PROFILE_VELOCITY) {
             motor_interface::fill<uint32_t>(
-                static_cast<uint32_t>(config_.profile_velocity / (2 * M_PI) * config_.pulse_per_revolution),
+                static_cast<uint32_t>(config_.profile_velocity / DEGREE_PER_REVOLUTION * config_.pulse_per_revolution),
                 e_cfg.data
             );
         } else if (e_cfg.id == motor_interface::ID_PROFILE_ACCELERATION) {
             motor_interface::fill<uint32_t>(
-                static_cast<uint32_t>(config_.profile_acceleration / (2 * M_PI) * config_.pulse_per_revolution),
+                static_cast<uint32_t>(config_.profile_acceleration / DEGREE_PER_REVOLUTION * config_.pulse_per_revolution),
                 e_cfg.data
             );
         } else if (e_cfg.id == motor_interface::ID_PROFILE_DECELERATION) {
             motor_interface::fill<uint32_t>(
-                static_cast<uint32_t>(config_.profile_deceleration / (2 * M_PI) * config_.pulse_per_revolution),
+                static_cast<uint32_t>(config_.profile_deceleration / DEGREE_PER_REVOLUTION * config_.pulse_per_revolution),
                 e_cfg.data
             );
         } else {
@@ -160,7 +161,7 @@ void zeroerr::ZeroerrDriver::loadParameters(const std::string& param_file)
             e_cfg.size = i["size"].as<uint8_t>();
             e_cfg.type = motor_interface::toDataType(i["type"].as<std::string>());
 
-            if (e_cfg.id <= motor_interface::ID_TARGET_TORQUE) {
+            if (e_cfg.id <= motor_interface::ID_TARGET_EFFORT) {
                 r_idx++;
             } else {
                 t_idx++;
@@ -275,30 +276,30 @@ bool zeroerr::ZeroerrDriver::isReceived(const uint8_t* data, uint8_t* out)
 
 double zeroerr::ZeroerrDriver::position(const int32_t value)
 {
-    return static_cast<double>(value) / static_cast<double>(config_.pulse_per_revolution) * (2 * M_PI);
+    return static_cast<double>(value) / static_cast<double>(config_.pulse_per_revolution) * DEGREE_PER_REVOLUTION;
 }
 
 double zeroerr::ZeroerrDriver::velocity(const int32_t value)
 {
-    return static_cast<double>(value) / static_cast<double>(config_.pulse_per_revolution) * (2 * M_PI);
+    return static_cast<double>(value) / static_cast<double>(config_.pulse_per_revolution) * DEGREE_PER_REVOLUTION;
 }
 
-double zeroerr::ZeroerrDriver::torque(const int16_t value)
+double zeroerr::ZeroerrDriver::effort(const int16_t value)
 {
-    return config_.rated_torque * 0.01 * static_cast<double>(value) * config_.unit_torque;
+    return config_.rated_effort * 0.01 * static_cast<double>(value) * config_.unit_effort;
 }
 
 int32_t zeroerr::ZeroerrDriver::position(const double value)
 {
-    return static_cast<int32_t>(value / (2 * M_PI) * config_.pulse_per_revolution);
+    return static_cast<int32_t>(value / DEGREE_PER_REVOLUTION * config_.pulse_per_revolution);
 }
 
 int32_t zeroerr::ZeroerrDriver::velocity(const double value)
 {
-    return static_cast<int32_t>(value / (2 * M_PI) * config_.pulse_per_revolution);
+    return static_cast<int32_t>(value / DEGREE_PER_REVOLUTION * config_.pulse_per_revolution);
 }
 
-int16_t zeroerr::ZeroerrDriver::torque(const double value)
+int16_t zeroerr::ZeroerrDriver::effort(const double value)
 {
-    return static_cast<int16_t>(value / config_.rated_torque * 100 / config_.unit_torque);
+    return static_cast<int16_t>(value / config_.rated_effort * 100 / config_.unit_effort);
 }

@@ -44,7 +44,7 @@ masters:
 | `can_interface_index` | SocketCAN suffix. `0` means `can0`. |
 | `can_bitrate` | Stored in the master config; the current code expects the interface to already be configured. |
 | `can_id` | CANopen node ID. Valid IDs are `1` through `MAX_CONTROLLER_SIZE - 1`. |
-| `profile_mode` | `0`: position, `1`: velocity, `2`: torque. Used when setting operation mode and filtering target PDOs. |
+| `profile_mode` | `0`: position, `1`: velocity, `2`: effort. Used when setting operation mode and filtering target PDOs. |
 
 ## COB-IDs
 
@@ -87,7 +87,7 @@ masters:
 | `write(command)` | Converts command fields to raw RPDO bytes and marks the node dirty for transmit. |
 | `read(status)` | Copies TPDO bytes, applies driver scaling, and fills `motor_frame_t`. |
 
-The controller supports target IDs `ID_CONTROLWORD`, `ID_TARGET_POSITION`, `ID_TARGET_VELOCITY`, and `ID_TARGET_TORQUE` on writes, and status/error/current position/current velocity/current torque IDs on reads.
+The controller supports target IDs `ID_CONTROLWORD`, `ID_TARGET_POSITION`, `ID_TARGET_VELOCITY`, and `ID_TARGET_EFFORT` on writes, and status/error/current position/current velocity/current effort IDs on reads.
 
 ## PDO mapping behavior
 
