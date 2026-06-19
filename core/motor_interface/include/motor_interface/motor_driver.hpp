@@ -14,6 +14,27 @@ namespace motor_interface {
 inline constexpr uint8_t MAX_DRIVER_SIZE = 8;
 
 inline constexpr uint8_t MAX_DATA_SIZE = 4;
+
+enum class DataType {
+    U8,
+    U16,
+    U32,
+    U64,
+    S8,
+    S16,
+    S32
+};
+
+struct entry_table_t {
+    uint8_t id;
+    uint16_t index;
+    uint8_t subindex;
+
+    DataType type;
+    uint8_t size;
+    uint8_t data[MAX_DATA_SIZE];
+};
+
 inline constexpr uint8_t MAX_ITEM_SIZE = 32;
 
 inline constexpr uint8_t ID_CONTROLWORD      = 0;
@@ -43,15 +64,7 @@ inline constexpr uint8_t ID_MAX_DECELERATION     = 58;
 inline constexpr uint8_t ID_RXPDO                = 98;
 inline constexpr uint8_t ID_TXPDO                = 99;
 
-enum class DataType {
-    U8,
-    U16,
-    U32,
-    U64,
-    S8,
-    S16,
-    S32
-};
+
 
 enum class DriverState {
     Fault,
@@ -79,15 +92,7 @@ struct driver_config_t {
     int8_t profile_torque_value;
 };
 
-struct entry_table_t {
-    uint8_t id;
-    uint16_t index;
-    uint8_t subindex;
 
-    DataType type;
-    uint8_t size;
-    uint8_t data[MAX_DATA_SIZE];
-};
 
 inline DataType toDataType(const std::string& type) {
     if (type == "u8") return DataType::U8;

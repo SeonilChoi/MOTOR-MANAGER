@@ -161,7 +161,7 @@ These IDs are used by driver YAML files and `motor_frame_t::target_interface_id`
 
 | Name | Type | Meaning | Default |
 | --- | --- | --- | --- |
-| `id` | `uint8_t` | 마스터의 고유한 ID | `0` |
+| `id` | `uint8_t` | 마스터 ID | `0` |
 | `number_of_slaves` | `uint8_t` | 마스터가 가질 `controller`의 수 | `0` |
 | `ethercat_master_index` | `unsigned int` | EtherCAT 전용 마스터 인덱스 | `0` |
 | `can_interface_index` | `unsigned int` | CAN 전용 장치 인덱스 | `0` |
@@ -199,7 +199,7 @@ These IDs are used by driver YAML files and `motor_frame_t::target_interface_id`
 
 | Name | Type | Meaning | Default |
 | --- | --- | --- | --- |
-| `controller_index` | `uint8_t` | `motor_controller`의 고유한 인덱스 | `0` |
+| `controller_index` | `uint8_t` | `motor_controller` 인덱스 | `0` |
 | `master_id` | `uint8_t` | `motor_controller`가 속한 마스터 ID | `0` |
 | `driver_id` | `uint8_t` | `motor_controller`의 드라이버 ID | `0` |
 | `alias` | `uint16_t` | EtherCAT 전용 alias 값 | `0` |
@@ -234,3 +234,29 @@ These IDs are used by driver YAML files and `motor_frame_t::target_interface_id`
 | Name | Type | Meaning | Default |
 | --- | --- | --- | --- |
 | `MAX_DRIVER_SIZE` | `uint8_t` | 가능한 드라이버 수의 최대값 | `8` |
+
+### `entry_table_t`
+
+`entry_table_t`는 모터에 설정할 아이템이나 등록한 인터페이스의 정보를 담는 인터페이스이다.
+
+| Name | Type | Meaning | Default |
+| --- | --- | --- | --- |
+| `MAX_DATA_SIZE` | `uint8_t` | 데이터의 최대 사이즈 (e.g. 4 bytes) | `4` |
+| Name | Type | Meaning | Default |
+| `DataType` | `class` | 데이터 타입을 의미하는 enum 클래스 (e.g. U32) | ` ` |
+| Name | Type | Meaning | Default |
+| `id` | `uint8_t` | 고유한 엔트리 ID | `0` |
+| `index` | `uint16_t` | 엔트리 인덱스 (e.g 0x6040) | `0` |
+| `subindex` | `uint8_t` | 엔트리 서브 인덱스 (e.g. 0x01) | ` ` |
+| `type` | `DataType` | 엔트리 데이터 타입 | ` ` |
+| `size` | `uint8_t` | 엔트리 데이터 사이즈 | ` ` |
+| `data` | `uint8_t[MAX_DATA_SIZE]` | 엔트리 데이터 | ` ` |
+
+### `MAX_ITEM_SIZE`
+
+| Name | Type | Meaning | Default |
+| --- | --- | --- | --- |
+| `MAX_ITEM_SIZE` | `uint8_t` | 모터에 설정 가능한 아이템 수의 최대값 | `32` |
+
+> [!NOTE]
+> `item`은 SDO등을 활용해 초기화 단계에서 모터를 설정하는데 필요한 엔트리를 의미하며, `interface`는 PDO등을 활용해 지속적으로 송수신할 엔트리를 의미한다.
