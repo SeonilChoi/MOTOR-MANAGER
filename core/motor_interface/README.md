@@ -8,8 +8,6 @@
 
 ### Build
 
-`motor_interface` is an internal interface library of the `motor_manager` package.
-
 ```bash
 colcon build --packages-select motor_manager
 ```
@@ -54,6 +52,8 @@ colcon build --packages-select motor_manager
 | `id()` | Return the master ID. |
 | `number_of_slaves()` | Return the number of slaves owned by the master. |
 
+---
+
 #### `MotorController`
 
 `MotorController` holds one slave or node, and each controller owns one master and one driver.
@@ -95,6 +95,8 @@ colcon build --packages-select motor_manager
 | `registerEntries()` | Register items and interfaces. |
 | `writeData(rx_interfaces, number_of_rx_interfaces)` | Write data to registered interfaces. |
 | `readData(tx_interfaces, number_of_tx_interfaces)` | Read data from registered interfaces. |
+
+---
 
 #### `MotorDriver`
 
@@ -217,8 +219,6 @@ It contains the following values: `Fault`, `SwitchOnDisabled`, `ReadyToSwitchOn`
 `serial::SerialDriver`, `socketcan::SocketcanDriver` 같은 통신 방식별 드라이버 훅은 이 core 추상화 밖에서 구현한다.
 
 ### Build
-
-`motor_interface`는 `motor_manager` 패키지 내부의 interface library이다.
 
 ```bash
 colcon build --packages-select motor_manager
