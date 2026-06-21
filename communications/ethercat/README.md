@@ -4,7 +4,7 @@
 
 `ethercat` is an IgH EtherCAT-based communication wrapper library composed of `EthercatMaster` and `EthercatController`.
 
-`EthercatMaster` derives from `motor_interface::MotorMaster`, and `EthercatController` derives from `motor_interface::MotorController`. This module maps driver SDO/PDO tables to IgH EtherCAT slave configuration and the domain process image.
+`EthercatMaster` derives from `motor_interface::MotorMaster`, and `EthercatController` derives from `motor_interface::MotorController`.
 
 ### Requirements
 
@@ -171,7 +171,7 @@ ethercat slaves --verbose
 
 `ethercat`은 IgH EtherCAT 기반 통신 Wrapper 라이브러리로, `EthercatMaster`와 `EthercatController`로 구성된다.
 
-`EthercatMaster`는 `motor_interface::MotorMaster`를 상속하고, `EthercatController`는 `motor_interface::MotorController`를 상속한다. 이 모듈은 드라이버의 SDO/PDO 테이블을 IgH EtherCAT slave configuration과 domain process image에 매핑한다.
+`EthercatMaster`는 `motor_interface::MotorMaster`를 상속하고, `EthercatController`는 `motor_interface::MotorController`를 상속한다.
 
 ### Requirements
 

@@ -1,77 +1,179 @@
-# zeroerr
+# Zeroerr
 
-ZeroErr driver mapping for `motor_manager`.
+## English Version
 
-`zeroerr::ZeroerrDriver` derives from `motor_interface::MotorDriver` and provides:
+`zeroerr` is a hardware driver library for controlling ZeroErr eRob motors with `motor_manager`.
 
-- YAML loading for ZeroErr SDO items and PDO interfaces
-- CiA402-style enable/disable state transitions
-- set-point acknowledge handling
-- raw/physical unit conversion for position, velocity, and effort
+`ZeroerrDriver` derives from `motor_interface::MotorDriver`.
 
-Select this driver with:
+### Configuration
+
+Example:
 
 ```yaml
 drivers:
   - id: 0
+    pulse_per_revolution: 524288
+    rated_effort: 25.0
+    unit_effort: 0.001
+    lower: -57.2957795131
+    upper: 57.2957795131
+    speed: 2000
+    acceleration: 85.9436692696
+    deceleration: 85.9436692696
+    profile_velocity: 85.9436692696
+    profile_acceleration: 85.9436692696
+    profile_deceleration: 85.9436692696
+    profile_position_value: 1
+    profile_velocity_value: 3
+    profile_effort_value: 4
     type: zeroerr
     param_file: ../param
 ```
 
-The driver loads `<param_file>/zeroerr.yaml`.
+### Parameter
 
-## Configuration values used by the driver
-
-The following `driver_config_t` fields are substituted into YAML items when matching semantic IDs are found:
-
-| Semantic ID | Value source | Conversion |
-| --- | --- | --- |
-| `ID_MIN_POSITION_LIMIT` | `lower` | degrees to encoder counts. |
-| `ID_MAX_POSITION_LIMIT` | `upper` | degrees to encoder counts. |
-| `ID_PROFILE_VELOCITY` | `profile_velocity` | degree/s to counts. |
-| `ID_PROFILE_ACCELERATION` | `profile_acceleration` | degree/s^2 to counts. |
-| `ID_PROFILE_DECELERATION` | `profile_deceleration` | degree/s^2 to counts. |
-
-Other YAML item values are copied according to their declared `type`.
-
-## YAML format
-
-Example from `ros2_motor_manager/param/zeroerr.yaml`:
+Example:
 
 ```yaml
 items:
-  - { id: 30, index: 0x6060, subindex: 0x00, size: 1, value: 1, type: s8 }
+  - { id: 30, index: 0x6060, subindex: 0x00, size: 1, value: 1,       type: s8  } # Operation Mode
+  - { id: 31, index: 0x607F, subindex: 0x00, size: 4, value: 2000000, type: u32 } # Max profile velocity
+  - { id: 51, index: 0x607D, subindex: 0x01, size: 4, value: 0,       type: s32 } # Min software position limit
+  - { id: 52, index: 0x607D, subindex: 0x02, size: 4, value: 0,       type: s32 } # Max software position limit
+  - { id: 54, index: 0x6081, subindex: 0x00, size: 4, value: 0,       type: u32 } # Profile velocity
+  - { id: 55, index: 0x6083, subindex: 0x00, size: 4, value: 0,       type: u32 } # Profile acceleration
+  - { id: 56, index: 0x6084, subindex: 0x00, size: 4, value: 0,       type: u32 } # Profile deceleration
+
 interfaces:
-  - { id: 98, index: 0x1600 }
-  - { id: 0, index: 0x6040, subindex: 0x00, size: 2, type: u16 }
-  - { id: 1, index: 0x607A, subindex: 0x00, size: 4, type: s32 }
-  - { id: 99, index: 0x1A00 }
-  - { id: 4, index: 0x6041, subindex: 0x00, size: 2, type: u16 }
+  - { id: 98, index: 0x1600                                     } # RxPDO
+  - { id: 0,  index: 0x6040, subindex: 0x00, size: 2, type: u16 } # Controlword
+  - { id: 1,  index: 0x607A, subindex: 0x00, size: 4, type: s32 } # Target position
+  - { id: 2,  index: 0x60FF, subindex: 0x00, size: 4, type: s32 } # Target velocity
+  - { id: 3,  index: 0x6071, subindex: 0x00, size: 2, type: s16 } # Target effort
+  - { id: 99, index: 0x1A00                                     } # TxPDO
+  - { id: 4,  index: 0x6041, subindex: 0x00, size: 2, type: u16 } # Statusword
+  - { id: 5,  index: 0x603F, subindex: 0x00, size: 2, type: u16 } # Error code
+  - { id: 6,  index: 0x6064, subindex: 0x00, size: 4, type: s32 } # Position actual value
+  - { id: 7,  index: 0x606C, subindex: 0x00, size: 4, type: s32 } # Velocity actual value
+  - { id: 8,  index: 0x6077, subindex: 0x00, size: 2, type: s16 } # Effort actual value
 ```
 
-`ID_RXPDO` (`98`) and `ID_TXPDO` (`99`) are marker rows. Other rows become PDO entries. RX entries are counted when `id <= ID_TARGET_EFFORT`; remaining entries are counted as TX entries.
+### Entries
 
-## Runtime behavior
+#### Items
 
-| Function | Description |
-| --- | --- |
-| `loadParameters(param_file)` | Loads `items` and `interfaces` from YAML and fills driver entry tables. |
-| `isEnabled(data, driver_state, out)` | Advances the CiA402 state machine from `Fault` through `OperationEnabled`. |
-| `isDisabled(data, driver_state, out)` | Writes the current disable command until `SwitchOnDisabled` is reached. |
-| `isReceived(data, out)` | When set-point acknowledge is present, writes `0x102F` to `out` and returns `true`. |
-| `position(int32_t)` / `position(double)` | Converts encoder counts to degrees and degrees to counts. |
-| `velocity(int32_t)` / `velocity(double)` | Converts count-based velocity to degree/s and degree/s to counts. |
-| `effort(int16_t)` / `effort(double)` | Converts raw effort to Nm and Nm to raw effort. |
+| Name                        | Index    | Sub-index | Type  | ID   |
+| --------------------------- | -------- | --------- | ----- | ---- |
+| Operation mode              | `0x6060` | `0x00`    | `s8`  | `30` |
+| Max profile velocity        | `0x607F` | `0x00`    | `u32` | `31` |
+| Min software position limit | `0x607D` | `0x01`    | `s32` | `51` |
+| Max software position limit | `0x607D` | `0x02`    | `s32` | `52` |
+| Profile velocity            | `0x6081` | `0x00`    | `u32` | `54` |
+| Profile acceleration        | `0x6083` | `0x00`    | `u32` | `55` |
+| Profile deceleration        | `0x6084` | `0x00`    | `u32` | `56` |
 
-## Controlword values
+#### Interfaces
 
-The implementation uses ZeroErr-specific controlword constants internally:
+| Name                  | Index    | Sub-index | Type  | ID   |
+| --------------------- | -------- | --------- | ----- | ---- |
+| RxPDO                 | `0x1600` |           |       | `98` |
+| Controlword           | `0x6040` | `0x00`    | `u16` | `0`  |
+| Target position       | `0x607A` | `0x00`    | `s32` | `1`  |
+| Target velocity       | `0x60FF` | `0x00`    | `s32` | `2`  |
+| Target effort         | `0x6071` | `0x00`    | `s16` | `3`  |
+| TxPDO                 | `0x1A00` |           |       | `99` |
+| Statusword            | `0x6041` | `0x00`    | `u16` | `4`  |
+| Error code            | `0x603F` | `0x00`    | `u16` | `5`  |
+| Position actual value | `0x6064` | `0x00`    | `s32` | `6`  |
+| Velocity actual value | `0x606C` | `0x00`    | `s32` | `7`  |
+| Effort actual value   | `0x6077` | `0x00`    | `s16` | `8`  |
 
-| Name | Value |
-| --- | --- |
-| `CW_SHUTDOWN` | `0x0026` |
-| `CW_SWITCH_ON` | `0x0027` |
-| `CW_ENABLE_OPERATION` | `0x002F` |
-| `CW_DISABLE_VOLTAGE` | `0x0080` |
-| `CW_DISABLE_OPERATION` | `0x0027` |
-| `CW_FAULT_RESET` | `0x0080` |
+## Korean Version
+
+`zeroerr`은 ZeroErr 사의 eRob 모터를 `motor_manager`에서 제어하기 위한 하드웨어 드라이버 라이브러리이다.
+
+`ZeroerrDriver`는 `motor_interface::MotorDriver`를 상속한다.
+
+### Configuration
+
+예시:
+
+```yaml
+drivers:
+  - id: 0
+    pulse_per_revolution: 524288
+    rated_effort: 25.0
+    unit_effort: 0.001
+    lower: -57.2957795131
+    upper: 57.2957795131
+    speed: 2000
+    acceleration: 85.9436692696
+    deceleration: 85.9436692696
+    profile_velocity: 85.9436692696
+    profile_acceleration: 85.9436692696
+    profile_deceleration: 85.9436692696
+    profile_position_value: 1
+    profile_velocity_value: 3
+    profile_effort_value: 4
+    type: zeroerr
+    param_file: ../param
+```
+
+### Parameter
+
+예시:
+
+```yaml
+items:
+  - { id: 30, index: 0x6060, subindex: 0x00, size: 1, value: 1,       type: s8  } # Operation Mode
+  - { id: 31, index: 0x607F, subindex: 0x00, size: 4, value: 2000000, type: u32 } # Max profile velocity
+  - { id: 51, index: 0x607D, subindex: 0x01, size: 4, value: 0,       type: s32 } # Min software position limit
+  - { id: 52, index: 0x607D, subindex: 0x02, size: 4, value: 0,       type: s32 } # Max software position limit
+  - { id: 54, index: 0x6081, subindex: 0x00, size: 4, value: 0,       type: u32 } # Profile velocity
+  - { id: 55, index: 0x6083, subindex: 0x00, size: 4, value: 0,       type: u32 } # Profile acceleration
+  - { id: 56, index: 0x6084, subindex: 0x00, size: 4, value: 0,       type: u32 } # Profile deceleration
+
+interfaces:
+  - { id: 98, index: 0x1600                                     } # RxPDO
+  - { id: 0,  index: 0x6040, subindex: 0x00, size: 2, type: u16 } # Controlword
+  - { id: 1,  index: 0x607A, subindex: 0x00, size: 4, type: s32 } # Target position
+  - { id: 2,  index: 0x60FF, subindex: 0x00, size: 4, type: s32 } # Target velocity
+  - { id: 3,  index: 0x6071, subindex: 0x00, size: 2, type: s16 } # Target effort
+  - { id: 99, index: 0x1A00                                     } # TxPDO
+  - { id: 4,  index: 0x6041, subindex: 0x00, size: 2, type: u16 } # Statusword
+  - { id: 5,  index: 0x603F, subindex: 0x00, size: 2, type: u16 } # Error code
+  - { id: 6,  index: 0x6064, subindex: 0x00, size: 4, type: s32 } # Position actual value
+  - { id: 7,  index: 0x606C, subindex: 0x00, size: 4, type: s32 } # Velocity actual value
+  - { id: 8,  index: 0x6077, subindex: 0x00, size: 2, type: s16 } # Effort actual value
+```
+
+### Entries
+
+#### Items
+
+| Name                        | Index    | Sub-index | Type  | ID   |
+| --------------------------- | -------- | --------- | ----- | ---- |
+| Operation mode              | `0x6060` | `0x00`    | `s8`  | `30` |
+| Max profile velocity        | `0x607F` | `0x00`    | `u32` | `31` |
+| Min software position limit | `0x607D` | `0x01`    | `s32` | `51` |
+| Max software position limit | `0x607D` | `0x02`    | `s32` | `52` |
+| Profile velocity            | `0x6081` | `0x00`    | `u32` | `54` |
+| Profile acceleration        | `0x6083` | `0x00`    | `u32` | `55` |
+| Profile deceleration        | `0x6084` | `0x00`    | `u32` | `56` |
+
+#### Interfaces
+
+| Name                  | Index    | Sub-index | Type  | ID   |
+| --------------------- | -------- | --------- | ----- | ---- |
+| RxPDO                 | `0x1600` |           |       | `98` |
+| Controlword           | `0x6040` | `0x00`    | `u16` | `0`  |
+| Target position       | `0x607A` | `0x00`    | `s32` | `1`  |
+| Target velocity       | `0x60FF` | `0x00`    | `s32` | `2`  |
+| Target effort         | `0x6071` | `0x00`    | `s16` | `3`  |
+| TxPDO                 | `0x1A00` |           |       | `99` |
+| Statusword            | `0x6041` | `0x00`    | `u16` | `4`  |
+| Error code            | `0x603F` | `0x00`    | `u16` | `5`  |
+| Position actual value | `0x6064` | `0x00`    | `s32` | `6`  |
+| Velocity actual value | `0x606C` | `0x00`    | `s32` | `7`  |
+| Effort actual value   | `0x6077` | `0x00`    | `s16` | `8`  |
