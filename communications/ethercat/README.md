@@ -35,7 +35,7 @@ Check the Ethernet driver name, such as `e1000e`, `igb`, `igc`, or `r8169`.
 
 Install a Linux kernel that matches the detected driver by referring to [A table of supported hardware](https://docs.etherlab.org/ethercat/1.6/doxygen/devicedrivers.html).
 
-Refer to [Linux kernel installation](https://docs.etherlab.org/ethercat/1.6/doxygen/devicedrivers.html) for the kernel installation method.
+Refer to [Linux kernel installation](https://github.com/SeonilChoi/motor_manager/blob/main/communications/ethercat/LINUX_KERNEL_INSTALLATION.md) for the kernel installation method.
 
 5. Install dependencies
 
@@ -202,7 +202,7 @@ ethtool -i enp1s0
 
 [A table of supported hardware](https://docs.etherlab.org/ethercat/1.6/doxygen/devicedrivers.html)에서 해당 드라이버에 맞는 Linux 커널을 설치해야 사용 가능하다.
 
-Linux 커널 설치 방법은 [리눅스 커널 설치](https://docs.etherlab.org/ethercat/1.6/doxygen/devicedrivers.html)를 참고한다.
+Linux 커널 설치 방법은 [리눅스 커널 설치](https://github.com/SeonilChoi/motor_manager/blob/main/communications/ethercat/LINUX_KERNEL_INSTALLATION.md)를 참고한다.
 
 5. Install dependencies
 
