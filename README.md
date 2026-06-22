@@ -132,21 +132,6 @@ interfaces:
 | `Dynamixel` | :white_check_mark: |
 | `CubeMars` | :white_check_mark: |
 
-### Shared State and Synchronization
-
-The following members are shared between the main loop, serial loops, and public API calls. Only members declared as `std::mutex` or `std::atomic` are listed here.
-
-| Name | Type | Purpose |
-| --- | --- | --- |
-| `is_disabled_` | `std::atomic<bool>` | Stores whether all controllers are currently in the `Disable` state. |
-| `controller_enabled_` | `std::atomic<bool>[]` | Stores the per-controller `Enable` completion state. |
-| `controller_disabled_` | `std::atomic<bool>[]` | Stores the per-controller `Disable` completion state. |
-| `on_disabled_` | `std::atomic<bool>` | Stores a stop request from `request_stop()` and makes loops enter the disable path. |
-| `running_` | `std::atomic<bool>` | Controls the lifetime of the main loop. |
-| `frame_mutex_` | `std::mutex` | Protects command and status frame buffers and their sequence counters. |
-| `serial_running_` | `std::atomic<bool>` | Controls the lifetime of serial loops. |
-| `serial_exception_mutex_` | `std::mutex` | Protects the serial exception pointer shared between serial loops and the main loop. |
-
 ## Korean Version
 
 `motor_manager`는 이기종 간 통합 모터 제어를 위한 C++ 라이브러리이다.
@@ -278,18 +263,3 @@ interfaces:
 | `ZeroErr` | :white_check_mark: |
 | `Dynamixel` | :white_check_mark: |
 | `CubeMars` | :white_check_mark: |
-
-### Shared State and Synchronization
-
-아래 멤버들은 메인 루프, serial 루프, public API 호출 사이에서 공유된다. `std::mutex` 또는 `std::atomic`으로 선언된 멤버만 작성한다.
-
-| Name | Type | Purpose |
-| --- | --- | --- |
-| `is_disabled_` | `std::atomic<bool>` | 모든 controller가 현재 `Disable` 상태인지 저장한다. |
-| `controller_enabled_` | `std::atomic<bool>[]` | 각 controller의 `Enable` 완료 상태를 저장한다. |
-| `controller_disabled_` | `std::atomic<bool>[]` | 각 controller의 `Disable` 완료 상태를 저장한다. |
-| `on_disabled_` | `std::atomic<bool>` | `request_stop()`에서 들어온 stop 요청을 저장하고 루프가 disable 경로로 들어가게 한다. |
-| `running_` | `std::atomic<bool>` | 메인 루프의 실행 상태를 제어한다. |
-| `frame_mutex_` | `std::mutex` | command/status frame buffer와 sequence counter를 보호한다. |
-| `serial_running_` | `std::atomic<bool>` | serial 루프의 실행 상태를 제어한다. |
-| `serial_exception_mutex_` | `std::mutex` | serial 루프와 메인 루프 사이에서 공유되는 serial exception pointer를 보호한다. |
