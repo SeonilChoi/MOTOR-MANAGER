@@ -5,12 +5,10 @@
 #include <exception>
 #include <memory>
 #include <mutex>
-#include <optional>
 #include <stdexcept>
 #include <string>
 #include <thread>
 #include <unordered_map>
-#include <unordered_set>
 #include <vector>
 
 #include "motor_interface/motor_master.hpp"
@@ -24,7 +22,7 @@ inline constexpr uint64_t NSEC_PER_SEC = 1000000000;
 enum class CommunicationType {
     Ethercat,
     Canopen,
-    SocketCAN,
+    Socketcan,
     Serial
 };
 
@@ -32,14 +30,13 @@ enum class DriverType {
     Minas,
     Zeroerr,
     Dynamixel,
-    CubeMars,
-    Unitree
+    Cubemars,
 };
 
 inline CommunicationType toCommunicationType(const std::string& type) {
     if (type == "ethercat") return CommunicationType::Ethercat;
     if (type == "canopen") return CommunicationType::Canopen;
-    if (type == "socketcan") return CommunicationType::SocketCAN;
+    if (type == "socketcan") return CommunicationType::Socketcan;
     if (type == "serial") return CommunicationType::Serial;
     if (type == "dynamixel") return CommunicationType::Serial;
     throw std::runtime_error("Invalid communication type.");
@@ -49,7 +46,7 @@ inline DriverType toDriverType(const std::string& type) {
     if (type == "minas") return DriverType::Minas;
     if (type == "zeroerr") return DriverType::Zeroerr;
     if (type == "dynamixel") return DriverType::Dynamixel;
-    if (type == "cubemars") return DriverType::CubeMars;
+    if (type == "cubemars") return DriverType::Cubemars;
     throw std::runtime_error("Invalid driver type.");
 }
 
@@ -65,10 +62,8 @@ public:
 
     void read(motor_interface::motor_frame_t* status);
 
-    /** `user_command` / Empty: start CiA402 disable until all axes report disabled, then `run()` returns. */
     void request_stop();
 
-    /** Node teardown: clear the RT loop flag so `run()` exits (after current sleep slice); does not wait for drive disable. */
     void request_exit();
 
     uint32_t period() const { return period_; }
@@ -80,41 +75,36 @@ private:
 
     void initialize();
 
-    void start() { for (auto& m_iter : masters_) m_iter.second->activate(); }
+    void start();
 
-    void stop() { for (auto& m_iter : masters_) m_iter.second->deactivate(); }
+    void stop();
 
-    void startSerialWorkers();
+    void enableControllers(const std::vector<uint8_t>& controller_indices);
 
-    void stopSerialWorkers();
+    void disableControllers(const std::vector<uint8_t>& controller_indices);
 
-    void serialWorker(uint8_t master_id);
-
-    bool isSerialMaster(uint8_t master_id) const;
-
-    bool shouldServiceController(
-        uint8_t controller_index,
-        std::optional<uint8_t> serial_master_id) const;
-
-    void enableControllers(std::optional<uint8_t> serial_master_id);
-
-    void disableControllers(std::optional<uint8_t> serial_master_id);
-
-    void updateControllers(std::optional<uint8_t> serial_master_id);
-
-    void refreshEnabled();
+    void updateControllers(const std::vector<uint8_t>& controller_indices);
 
     void refreshDisabled();
+
+
+    // Serial
+    void startSerial();
+
+    void stopSerial();
+
+    void serialRun(uint8_t master_id);
 
     void setSerialException(std::exception_ptr exception);
 
     void rethrowSerialExceptionIfAny();
 
+
     std::unordered_map<uint8_t, std::unique_ptr<motor_interface::MotorMaster>> masters_;
 
-    std::unordered_map<uint8_t, std::unique_ptr<motor_interface::MotorDriver>> drivers_;
+    std::vector<uint8_t> controller_indices_;
 
-    std::unordered_set<uint8_t> serial_master_ids_;
+    std::unordered_map<uint8_t, std::unique_ptr<motor_interface::MotorDriver>> drivers_;
 
     std::unique_ptr<motor_interface::MotorController> controllers_[motor_interface::MAX_CONTROLLER_SIZE];
 
@@ -123,8 +113,6 @@ private:
     uint8_t number_of_controllers_{0};
 
     uint32_t frequency_{0};
-
-    std::atomic<bool> is_enable_{false};
 
     std::atomic<bool> is_disabled_{false};
 
@@ -136,25 +124,29 @@ private:
 
     std::atomic<bool> running_{true};
 
-    std::atomic<bool> serial_running_{false};
-
     std::mutex frame_mutex_;
+
+    motor_interface::motor_frame_t command_[motor_interface::MAX_CONTROLLER_SIZE];
+
+    motor_interface::motor_frame_t status_[motor_interface::MAX_CONTROLLER_SIZE];
+
+    uint64_t command_sequence_[motor_interface::MAX_CONTROLLER_SIZE]{};
+
+    uint64_t applied_command_sequence_[motor_interface::MAX_CONTROLLER_SIZE]{};
+
+
+    // Serial
+    std::unordered_map<uint8_t, std::unique_ptr<motor_interface::MotorMaster>> serial_masters_;
+
+    std::unordered_map<uint8_t, std::vector<uint8_t>> serial_controller_indices_;
+
+    std::atomic<bool> serial_running_{false};
 
     std::mutex serial_exception_mutex_;
 
     std::exception_ptr serial_exception_{nullptr};
 
     std::vector<std::thread> serial_threads_;
-
-    motor_interface::motor_frame_t command_[motor_interface::MAX_CONTROLLER_SIZE];
-
-    motor_interface::motor_frame_t status_[motor_interface::MAX_CONTROLLER_SIZE];
-
-    bool command_dirty_[motor_interface::MAX_CONTROLLER_SIZE]{};
-
-    uint64_t command_sequence_[motor_interface::MAX_CONTROLLER_SIZE]{};
-
-    uint64_t applied_command_sequence_[motor_interface::MAX_CONTROLLER_SIZE]{};
 };
 
 } // namespace motor_manager

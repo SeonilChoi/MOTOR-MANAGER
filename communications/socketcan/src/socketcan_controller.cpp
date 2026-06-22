@@ -25,9 +25,9 @@ void socketcan::SocketcanController::initialize(
     master_ = m;
     driver_ = &driver;
 
-    master_->registerNode(node_id_);
+    master_->registerNode(can_id_);
 
-    node_ = master_->node(node_id_);
+    node_ = master_->node(can_id_);
     if (!node_) throw std::runtime_error("Failed to get SocketCAN node data.");
 
     status_cache_.controller_index = index_;
@@ -43,7 +43,7 @@ bool socketcan::SocketcanController::enable()
     if (current_driver_state_ == motor_interface::DriverState::OperationEnabled) return true;
 
     socketcan_frame_t frame{};
-    if (socketcan_driver_->encodeSocketcanEnable(node_id_, frame)) {
+    if (socketcan_driver_->encodeSocketcanEnable(can_id_, frame)) {
         enqueueDriverFrame(frame);
     }
 
@@ -56,7 +56,7 @@ bool socketcan::SocketcanController::disable()
     if (current_driver_state_ == motor_interface::DriverState::SwitchOnDisabled) return true;
 
     socketcan_frame_t frame{};
-    if (socketcan_driver_->encodeSocketcanDisable(node_id_, frame)) {
+    if (socketcan_driver_->encodeSocketcanDisable(can_id_, frame)) {
         enqueueDriverFrame(frame);
     }
 
@@ -96,7 +96,7 @@ void socketcan::SocketcanController::write(const motor_interface::motor_frame_t&
 void socketcan::SocketcanController::sendCommandFrame(const motor_interface::motor_frame_t& command)
 {
     socketcan_frame_t frame{};
-    if (!socketcan_driver_->encodeSocketcanCommand(node_id_, command, frame)) {
+    if (!socketcan_driver_->encodeSocketcanCommand(can_id_, command, frame)) {
         throw std::runtime_error("Failed to encode SocketCAN command frame.");
     }
 
@@ -109,14 +109,14 @@ void socketcan::SocketcanController::read(motor_interface::motor_frame_t& status
     const bool has_frame = master_->takeReceivedFrame(
         [this](const can_frame& frame) {
             const socketcan_frame_t driver_frame = toDriverFrame(frame);
-            return socketcan_driver_->acceptsSocketcanStatusFrame(node_id_, driver_frame);
+            return socketcan_driver_->acceptsSocketcanStatusFrame(can_id_, driver_frame);
         },
         raw);
 
     if (has_frame) {
         motor_interface::motor_frame_t decoded = status_cache_;
         const socketcan_frame_t driver_frame = toDriverFrame(raw);
-        if (socketcan_driver_->decodeSocketcanStatus(node_id_, driver_frame, decoded)) {
+        if (socketcan_driver_->decodeSocketcanStatus(can_id_, driver_frame, decoded)) {
             decoded.controller_index = index_;
             status_cache_ = decoded;
         }

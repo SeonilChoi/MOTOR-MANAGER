@@ -1,61 +1,125 @@
 # motor_manager library
 
-`motor_manager::MotorManager` is the runtime library that loads a motor YAML file, constructs masters/drivers/controllers, and runs the cyclic bus loop.
+## English Version
 
-Header: `include/motor_manager/motor_manager.hpp`
+`motor_manager::MotorManager` is a runtime library that loads motor configuration from a YAML file and creates and manages `master`, `controller`, and `driver` objects.
 
-## Construction
+`EtherCAT`, `CANopen`, and `SocketCAN` masters are handled in the main loop. `Serial` masters are handled by separate serial threads.
 
-```cpp
-#include "motor_manager/motor_manager.hpp"
+### API
 
-motor_manager::MotorManager manager("/path/to/config.yaml");
-manager.run();
-```
+#### `CommunicationType`
 
-The constructor loads the YAML configuration and initializes all masters and controllers. `run()` activates the masters and blocks until `request_stop()` finishes disabling all axes or `request_exit()` clears the loop flag.
+`CommunicationType` consists of `Ethercat`, `Canopen`, `Socketcan`, and `Serial`.
 
-## Public API
+#### `DriverType`
 
-| Function | Description |
+`DriverType` consists of `Minas`, `Zeroerr`, `Dynamixel`, and `Cubemars`.
+
+### Public Functions
+
+| Function | Purpose |
 | --- | --- |
-| `MotorManager(config_file)` | Loads YAML, creates EtherCAT/CANopen masters, creates MINAS/ZeroErr drivers, loads driver parameter YAML, and initializes controllers. |
-| `run()` | Starts the periodic loop. Requires permission for `mlockall` and `SCHED_FIFO`. |
-| `write(command, size)` | Copies command frames into the manager and marks the command buffer changed. |
-| `read(status)` | Copies the latest status frames out of the manager. |
-| `request_stop()` | Requests drive disable; the loop returns after all controllers report disabled. |
-| `request_exit()` | Stops the loop without waiting for drive disable. |
-| `period()` | Returns the configured period in nanoseconds. |
-| `number_of_controllers()` | Returns the number of configured slave/controller entries. |
+| `MotorManager(config_file)` | Loads the YAML configuration and initializes the manager. |
+| `run()` | Runs the main loop and starts the serial loop. |
+| `write(command, size)` | Stores external command frames in the internal command buffer. |
+| `read(status)` | Reads motor status from the internal status buffer. |
+| `request_stop()` | Requests all controllers to enter the `Disable` state. |
+| `request_exit()` | Requests the `run()` loop to exit. |
+| `period()` | Returns `period_`. |
+| `number_of_controllers()` | Returns the number of controllers. |
 
-The controller update path reads every controller, runs each controller's set-point check, stops command output if any status frame has a nonzero `errorcode`, and writes new commands only when `write()` has provided a newer command frame.
+### Internal Functions
 
-## Configuration schema
-
-Top-level keys:
-
-| Key | Meaning |
+| Function | Purpose |
 | --- | --- |
-| `period` | Cycle period in nanoseconds. |
-| `masters` | List of fieldbus masters and their slaves/nodes. |
-| `drivers` | List of vendor driver configs. |
+| `loadConfigurations(config_file)` | Loads configuration from a YAML file. |
+| `initialize()` | Initializes `master`, `driver`, and `controller` objects. |
+| `start()` | Runs `master->activate()` for every master. |
+| `stop()` | Runs `master->deactivate()` for every master. |
+| `enableControllers(controller_indices)` | Runs `controller->enable()` for the given controller indices. |
+| `disableControllers(controller_indices)` | Runs `controller->disable()` for the given controller indices. |
+| `updateControllers(controller_indices)` | Reads status with `controller->read()`, checks status with `controller->check()`, and writes a pending command with `controller->write()` when a new command exists. |
+| `refreshDisabled()` | Checks whether all controllers are in the `Disable` state and updates `is_disabled_`. |
+| `startSerial()` | Starts the serial loop in separate threads. |
+| `stopSerial()` | Stops the serial loop. |
+| `serialRun(master_id)` | Runs one serial master loop. |
+| `setSerialException(exception)` | Stores an exception raised from a serial loop. |
+| `rethrowSerialExceptionIfAny()` | Rethrows a stored serial exception in the main loop. |
 
-EtherCAT, CANopen, and SocketCAN masters run in the real-time loop. Serial
-masters run in separate worker threads so blocking Dynamixel traffic does not
-delay the EtherCAT cycle.
+### Internal State
 
-Supported values in the current code:
-
-| Field | Supported values |
+| Name | Purpose |
 | --- | --- |
-| `masters[].type` | `ethercat`, `canopen`, `socketcan`, `serial`, `dynamixel` |
-| `drivers[].type` | `minas`, `zeroerr`, `dynamixel`, `cubemars` |
-| `profile_mode` | `0`: position, `1`: velocity, `2`: effort |
+| `masters_` | Masters handled by the main loop. |
+| `serial_masters_` | Serial masters handled by serial threads. |
+| `drivers_` | Driver objects created from the YAML configuration. |
+| `controllers_` | Controller objects indexed by `controller_index`. |
+| `controller_indices_` | Controller indices handled by the main loop. |
+| `serial_controller_indices_` | Controller indices handled by each serial master. |
+| `command_` | Internal command buffer. |
+| `status_` | Internal status buffer. |
+| `command_sequence_` | Sequence counter updated whenever a new command is written. |
+| `applied_command_sequence_` | Sequence counter for the last command applied to each controller. |
 
-`param_file` can point to a YAML file or to a directory. YAML files are loaded directly; directories load `<param_file>/<type>.yaml`. Relative paths are resolved from the main config file.
+## Korean Version
 
-## Threading
+`motor_manager::MotorManager`는 런타임 라이브러리로, YAML 파일을 통해 모터 설정을 불러오고 `master`, `controller`, `driver` 객체를 생성해 관리한다.
 
-`write()` and `read()` share `command_` and `status_` through `frame_mutex_`. The real-time loop and serial workers copy command/status snapshots under that mutex, then perform controller and bus work outside the lock.
+`EtherCAT`, `CANopen`, `SocketCAN` 마스터는 메인 루프에서 처리하고, `Serial` 마스터는 별도의 serial 스레드에서 처리한다.
 
-`request_stop()` and `request_exit()` use atomics and can be called from another thread.
+### API
+
+#### `CommunicationType`
+
+`CommunicationType`은 `Ethercat`, `Canopen`, `Socketcan`, `Serial`로 구성된다.
+
+#### `DriverType`
+
+`DriverType`은 `Minas`, `Zeroerr`, `Dynamixel`, `Cubemars`로 구성된다.
+
+### Public Functions
+
+| Function | Purpose |
+| --- | --- |
+| `MotorManager(config_file)` | YAML configuration을 불러오고 manager를 초기화한다. |
+| `run()` | 메인 루프를 실행하고 serial 루프를 시작한다. |
+| `write(command, size)` | 외부 command frame을 내부 command buffer에 저장한다. |
+| `read(status)` | 내부 status buffer에서 모터 상태를 읽는다. |
+| `request_stop()` | 모든 controller가 `Disable` 상태가 되도록 요청한다. |
+| `request_exit()` | `run()` 루프 종료를 요청한다. |
+| `period()` | `period_`를 반환한다. |
+| `number_of_controllers()` | `controller`의 수를 반환한다. |
+
+### Internal Functions
+
+| Function | Purpose |
+| --- | --- |
+| `loadConfigurations(config_file)` | YAML 파일을 읽어서 configuration을 불러온다. |
+| `initialize()` | `master`, `driver`, `controller`를 초기화한다. |
+| `start()` | 모든 `master->activate()`를 실행한다. |
+| `stop()` | 모든 `master->deactivate()`를 실행한다. |
+| `enableControllers(controller_indices)` | 전달받은 controller index 목록에 대해 `controller->enable()`을 실행한다. |
+| `disableControllers(controller_indices)` | 전달받은 controller index 목록에 대해 `controller->disable()`을 실행한다. |
+| `updateControllers(controller_indices)` | `controller->read()`로 상태를 읽고, `controller->check()`로 상태를 확인한 뒤, 새로운 command가 있으면 `controller->write()`로 명령을 보낸다. |
+| `refreshDisabled()` | 모든 controller가 `Disable` 상태인지 확인하고 `is_disabled_`를 갱신한다. |
+| `startSerial()` | serial 루프를 별도 스레드로 실행한다. |
+| `stopSerial()` | serial 루프를 종료한다. |
+| `serialRun(master_id)` | 하나의 serial master 루프를 실행한다. |
+| `setSerialException(exception)` | serial 루프에서 발생한 exception을 저장한다. |
+| `rethrowSerialExceptionIfAny()` | 저장된 serial exception이 있으면 메인 루프에서 다시 던진다. |
+
+### Internal State
+
+| Name | Purpose |
+| --- | --- |
+| `masters_` | 메인 루프에서 처리하는 master 객체 |
+| `serial_masters_` | serial 스레드에서 처리하는 serial master 객체 |
+| `drivers_` | YAML configuration으로 생성한 driver 객체 |
+| `controllers_` | `controller_index`로 접근하는 controller 객체 |
+| `controller_indices_` | 메인 루프에서 처리하는 controller index 목록 |
+| `serial_controller_indices_` | 각 serial master가 처리하는 controller index 목록 |
+| `command_` | 내부 command buffer |
+| `status_` | 내부 status buffer |
+| `command_sequence_` | 새로운 command가 들어올 때마다 갱신되는 sequence counter |
+| `applied_command_sequence_` | 각 controller에 마지막으로 적용한 command sequence counter |

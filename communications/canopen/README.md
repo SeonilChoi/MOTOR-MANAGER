@@ -43,7 +43,7 @@ masters:
 | --- | --- |
 | `can_interface_index` | SocketCAN suffix. `0` means `can0`. |
 | `can_bitrate` | Stored in the master config; the current code expects the interface to already be configured. |
-| `can_id` | CANopen node ID. Valid IDs are `1` through `MAX_CONTROLLER_SIZE - 1`. |
+| `can_id` | CANopen device ID. Valid IDs are `1` through `MAX_CONTROLLER_SIZE - 1`. |
 | `profile_mode` | `0`: position, `1`: velocity, `2`: effort. Used when setting operation mode and filtering target PDOs. |
 
 ## COB-IDs

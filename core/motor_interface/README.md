@@ -77,7 +77,8 @@ colcon build --packages-select motor_manager
 | `position` | `uint16_t` | EtherCAT-only ring position value. | `0` |
 | `vendor_id` | `uint32_t` | EtherCAT-only vendor ID. | `0` |
 | `product_id` | `uint32_t` | EtherCAT-only product ID. | `0` |
-| `can_id` | `uint8_t` | CAN-only ID value. | `0` |
+| `can_id` | `uint8_t` | CANopen or SocketCAN device ID value. | `0` |
+| `bus_id` | `uint8_t` | Serial device ID value. | `0` |
 | `profile_mode` | `uint8_t` | `0`: position, `1`: velocity, `2`: effort. | `0` |
 
 ##### functions
@@ -289,7 +290,8 @@ colcon build --packages-select motor_manager
 | `position` | `uint16_t` | EtherCAT 전용 ring position 값 | `0` |
 | `vendor_id` | `uint32_t` | EtherCAT 전용 vendor ID 값 | `0` |
 | `product_id` | `uint32_t` | EtherCAT 전용 product ID 값 | `0` |
-| `can_id` | `uint8_t` | CAN 전용 ID 값 | `0` |
+| `can_id` | `uint8_t` | CANopen 혹은 SocketCAN 장치 ID 값 | `0` |
+| `bus_id` | `uint8_t` | Serial 장치 ID 값 | `0` |
 | `profile_mode` | `uint8_t` | `0`: 위치, `1`: 속도, `2`: 힘 | `0` |
 
 ##### functions

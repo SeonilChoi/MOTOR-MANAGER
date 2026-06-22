@@ -82,13 +82,13 @@ std::string packetErrorDescription(uint8_t error)
 
 std::string formatWriteFailure(
     const char* action,
-    uint8_t node_id,
+    uint8_t bus_id,
     const motor_interface::entry_table_t& item,
     uint8_t packet_error)
 {
     std::ostringstream oss;
     oss << action
-        << " (node_id=" << static_cast<unsigned int>(node_id)
+        << " (bus_id=" << static_cast<unsigned int>(bus_id)
         << ", item_id=" << static_cast<unsigned int>(item.id)
         << ", address=" << item.index
         << ", size=" << static_cast<unsigned int>(item.size)
@@ -114,9 +114,9 @@ void serial::SerialController::initialize(motor_interface::MotorMaster& master, 
 
     master_->configureProtocol(serial_driver_->serial_protocol());
 
-    master_->registerNode(node_id_);
+    master_->registerNode(bus_id_);
 
-    node_ = master_->node(node_id_);
+    node_ = master_->node(bus_id_);
     if (!node_) throw std::runtime_error("Failed to get serial node data.");
 
     registerEntries();
@@ -135,16 +135,16 @@ bool serial::SerialController::enable()
     if (!status || !control) throw std::runtime_error("Dynamixel enable interfaces are not configured.");
 
     uint8_t status_data[motor_interface::MAX_DATA_SIZE]{};
-    if (!master_->getBulkReadData(node_id_, status->index, status_data, status->size)) {
-        if (!master_->readRegister(node_id_, status->index, status_data, status->size)) {
+    if (!master_->getBulkReadData(bus_id_, status->index, status_data, status->size)) {
+        if (!master_->readRegister(bus_id_, status->index, status_data, status->size)) {
             return false;
         }
     }
 
     uint8_t control_data[motor_interface::MAX_DATA_SIZE]{};
     if (!driver_->isEnabled(status_data, current_driver_state_, control_data)) {
-        if (!master_->setBulkWriteData(node_id_, control->index, control_data, control->size)) {
-            return master_->writeRegister(node_id_, control->index, control_data, control->size);
+        if (!master_->setBulkWriteData(bus_id_, control->index, control_data, control->size)) {
+            return master_->writeRegister(bus_id_, control->index, control_data, control->size);
         }
 
         return false;
@@ -160,16 +160,16 @@ bool serial::SerialController::disable()
     if (!status || !control) throw std::runtime_error("Dynamixel disable interfaces are not configured.");
 
     uint8_t status_data[motor_interface::MAX_DATA_SIZE]{};
-    if (!master_->getBulkReadData(node_id_, status->index, status_data, status->size)) {
-        if (!master_->readRegister(node_id_, status->index, status_data, status->size)) {
+    if (!master_->getBulkReadData(bus_id_, status->index, status_data, status->size)) {
+        if (!master_->readRegister(bus_id_, status->index, status_data, status->size)) {
             return false;
         }
     }
 
     uint8_t control_data[motor_interface::MAX_DATA_SIZE]{};
     if (!driver_->isDisabled(status_data, current_driver_state_, control_data)) {
-        if (!master_->setBulkWriteData(node_id_, control->index, control_data, control->size)) {
-            return master_->writeRegister(node_id_, control->index, control_data, control->size);
+        if (!master_->setBulkWriteData(bus_id_, control->index, control_data, control->size)) {
+            return master_->writeRegister(bus_id_, control->index, control_data, control->size);
         }
 
         return false;
@@ -187,11 +187,11 @@ void serial::SerialController::check(const motor_interface::motor_frame_t& statu
     if (!status_interface || !control_interface) return;
 
     uint8_t status_data[motor_interface::MAX_DATA_SIZE]{};
-    if (!master_->getBulkReadData(node_id_, status_interface->index, status_data, status_interface->size)) return;
+    if (!master_->getBulkReadData(bus_id_, status_interface->index, status_data, status_interface->size)) return;
 
     uint8_t control_data[motor_interface::MAX_DATA_SIZE]{};
     if (driver_->isReceived(status_data, control_data)) {
-        (void)master_->setBulkWriteData(node_id_, control_interface->index, control_data, control_interface->size);
+        (void)master_->setBulkWriteData(bus_id_, control_interface->index, control_data, control_interface->size);
     }
 }
 
@@ -252,8 +252,8 @@ void serial::SerialController::writeData(const motor_interface::entry_table_t* r
         const motor_interface::entry_table_t& e = rx_interfaces[i];
         if (e.size == 0) continue;
 
-        if (!master_->setBulkWriteData(node_id_, e.index, e.data, e.size)) {
-            if (!master_->writeRegister(node_id_, e.index, e.data, e.size)) {
+        if (!master_->setBulkWriteData(bus_id_, e.index, e.data, e.size)) {
+            if (!master_->writeRegister(bus_id_, e.index, e.data, e.size)) {
                 throw std::runtime_error("Failed to write Dynamixel register.");
             }
         }
@@ -266,7 +266,7 @@ void serial::SerialController::readData(motor_interface::entry_table_t* tx_inter
         motor_interface::entry_table_t& e = tx_interfaces[i];
         if (e.size == 0) continue;
 
-        if (!master_->getBulkReadData(node_id_, e.index, e.data, e.size)) {
+        if (!master_->getBulkReadData(bus_id_, e.index, e.data, e.size)) {
             continue;
         }
     }
@@ -280,7 +280,7 @@ void serial::SerialController::addSlaveConfigItems()
         uint8_t disable_data[motor_interface::MAX_DATA_SIZE]{};
         if (node_) node_->last_packet_error = 0;
         const bool disabled = master_->writeRegister(
-            node_id_,
+            bus_id_,
             control->index,
             disable_data,
             control->size);
@@ -288,7 +288,7 @@ void serial::SerialController::addSlaveConfigItems()
         if (!disabled && node_ && node_->last_packet_error != 0) {
             throw std::runtime_error(formatWriteFailure(
                 "Failed to disable Dynamixel effort before configuration",
-                node_id_,
+                bus_id_,
                 *control,
                 node_->last_packet_error));
         }
@@ -312,11 +312,11 @@ void serial::SerialController::addSlaveConfigItems()
         }
 
         if (node_) node_->last_packet_error = 0;
-        if (!master_->writeRegister(node_id_, item.index, item.data, item.size)) {
+        if (!master_->writeRegister(bus_id_, item.index, item.data, item.size)) {
             const uint8_t packet_error = node_ ? node_->last_packet_error : 0;
             throw std::runtime_error(formatWriteFailure(
                 "Failed to write Dynamixel item",
-                node_id_,
+                bus_id_,
                 item,
                 packet_error));
         }
@@ -336,7 +336,7 @@ void serial::SerialController::addBulkEntries()
         if (isFilteredByProfile(e.id, profile_mode_)) continue;
 
         rx_interfaces_[number_of_active_rx_interfaces_++] = e;
-        master_->registerBulkWrite(node_id_, e.index, e.size);
+        master_->registerBulkWrite(bus_id_, e.index, e.size);
     }
 
     for (uint8_t i = 0; i < num_tx_interfaces; ++i) {
@@ -351,7 +351,7 @@ void serial::SerialController::addBulkEntries()
             {0}
         };
 
-        master_->registerBulkRead(node_id_, e.index, e.size);
+        master_->registerBulkRead(bus_id_, e.index, e.size);
     }
 }
 

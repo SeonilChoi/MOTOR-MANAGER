@@ -13,7 +13,7 @@ class SocketcanController : public motor_interface::MotorController {
 public:
     explicit SocketcanController(const motor_interface::slave_config_t& config)
     : motor_interface::MotorController(config)
-    , node_id_(config.can_id) {}
+    , can_id_(config.can_id) {}
 
     virtual ~SocketcanController() = default;
 
@@ -56,7 +56,7 @@ private:
 
     std::chrono::steady_clock::time_point next_periodic_send_{};
 
-    uint8_t node_id_{0};
+    uint8_t can_id_{0};
 };
 
 } // namespace socketcan

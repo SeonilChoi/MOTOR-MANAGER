@@ -18,6 +18,7 @@ struct slave_config_t {
     uint32_t vendor_id{};
     uint32_t product_id{};
     uint8_t can_id{};
+    uint8_t bus_id{};
     uint8_t profile_mode{};
 };
 

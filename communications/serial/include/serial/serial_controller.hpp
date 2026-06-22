@@ -11,7 +11,7 @@ class SerialController : public motor_interface::MotorController {
 public:
     explicit SerialController(const motor_interface::slave_config_t& config)
     : motor_interface::MotorController(config)
-    , node_id_(config.can_id) {}
+    , bus_id_(config.bus_id) {}
 
     virtual ~SerialController() = default;
 
@@ -63,7 +63,7 @@ private:
 
     uint8_t number_of_active_rx_interfaces_{0};
 
-    uint8_t node_id_{0};
+    uint8_t bus_id_{0};
 };
 
 } // namespace serial
