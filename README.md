@@ -1,5 +1,9 @@
 # Motor Manager
 
+<p align="left">
+  <img src="images/banner.gif" alt="EtherCAT simultaneous control demo with Panasonic Minas actuators and Zeroerr eRob motors">
+</p>
+
 ## English Version
 
 `motor_manager` is a C++ library for integrated motor control across different communication systems and motor drivers.
