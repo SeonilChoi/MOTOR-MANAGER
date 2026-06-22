@@ -1,27 +1,6 @@
 # Motor Manager
 
-<p align="left">
-  <img src="images/banner.gif" alt="EtherCAT simultaneous control demo with Panasonic Minas actuators and Zeroerr eRob motors">
-</p>
-
 `motor_manager` is an `ament_cmake` C++ library package for cyclic motor control. It contains the abstract motor interfaces, EtherCAT and CANopen transports, MINAS and ZeroErr driver mappings, and the YAML-driven `motor_manager::MotorManager` runtime.
-
-## Packages and libraries
-
-This repository is built as one ROS 2 package named `motor_manager`.
-
-| Path | Library | Purpose |
-| --- | --- | --- |
-| `core/motor_interface` | `motor_interface` | Common `MotorMaster`, `MotorController`, and `MotorDriver` abstractions. |
-| `communications/ethercat` | `ethercat` | IgH EtherCAT master/controller implementation. |
-| `communications/canopen` | `canopen` | SocketCAN CANopen master/controller implementation. |
-| `communications/serial` | `serial` | Dynamixel Protocol 2.0 serial master/controller implementation. |
-| `communications/socketcan` | `socketcan` | Raw SocketCAN master/controller implementation. |
-| `hardware/minas` | `minas` | Panasonic MINAS CiA402 driver mapping. |
-| `hardware/zeroerr` | `zeroerr` | ZeroErr CiA402 driver mapping. |
-| `hardware/dynamixel` | `dynamixel` | Dynamixel driver mapping. |
-| `hardware/cubemars` | `cubemars` | CubeMars driver mapping. |
-| `motor_manager` | `motor_manager` | YAML configuration loader and cyclic runtime loop. |
 
 ## Build
 
@@ -39,35 +18,6 @@ rosdep install --from-paths src --ignore-src -r -y
 colcon build --packages-up-to motor_manager
 source install/setup.bash
 ```
-
-If IgH EtherCAT is installed in a non-standard path, set:
-
-```bash
-colcon build --packages-up-to motor_manager --cmake-args \
-  -DMOTOR_MANAGER_IGH_ETHERCAT_INCLUDE_DIR=/path/to/include \
-  -DMOTOR_MANAGER_IGH_ETHERCAT_LIB=/path/to/libethercat.so
-```
-
-## Device setup
-
-### EtherCAT
-
-```bash
-sudo ethercatctl restart
-sudo chmod 666 /dev/EtherCAT0
-```
-
-### CANopen
-
-Bring up a SocketCAN interface before starting the manager. For example, with a CANable adapter:
-
-```bash
-sudo slcand -o -c -s8 -S 3000000 /dev/CANable can0
-sudo ip link set can0 txqueuelen 1000
-sudo ip link set can0 up
-```
-
-The current CANopen implementation binds to `can<can_interface_index>` from the YAML configuration.
 
 ## Configuration
 
@@ -113,11 +63,13 @@ drivers:
 
 `profile_mode` selects which command PDO is kept active:
 
-| Value | Mode |
-| --- | --- |
-| `0` | Profile position |
-| `1` | Profile velocity |
-| `2` | Profile effort |
+
+| Value | Mode             |
+| ----- | ---------------- |
+| `0`   | Profile position |
+| `1`   | Profile velocity |
+| `2`   | Profile effort   |
+
 
 For each driver, `param_file` can point to a YAML file or to a directory. YAML files are loaded directly; directories load `<param_file>/<type>.yaml`. Relative paths are resolved from the main config file.
 
@@ -126,38 +78,6 @@ Examples in this workspace:
 - `src/ros2/motion_system_ros2/ros2_motor_manager/config/example_ethercat_zeroerr.yaml`
 - `src/ros2/motion_system_ros2/ros2_motor_manager/config/example_canopen_zeroerr.yaml`
 - `src/ros2/motion_system_ros2/ros2_motor_manager/param/zeroerr.yaml`
-
-## Runtime API
-
-`motor_manager::MotorManager` is constructed with a config file path:
-
-```cpp
-motor_manager::MotorManager manager(config_file);
-manager.run();
-```
-
-The real-time cyclic loop:
-
-1. Activates every master.
-2. Starts serial worker threads for serial masters.
-3. Locks memory and requests `SCHED_FIFO`.
-4. Sleeps at the configured nanosecond `period`.
-5. Receives non-serial bus data.
-6. Enables drives, applies command updates, or disables drives when requested.
-7. Syncs clocks where supported.
-8. Transmits non-serial bus data.
-
-Commands and status use `motor_interface::motor_frame_t` from `common_motor_interface`.
-
-| Function | Purpose |
-| --- | --- |
-| `run()` | Starts the real-time cyclic loop and blocks until exit/disable. |
-| `write(command, size)` | Copies up to `MAX_CONTROLLER_SIZE` command frames into the manager. |
-| `read(status)` | Copies the latest status frames out of the manager. |
-| `request_stop()` | Requests CiA402 disable and lets `run()` return after all axes report disabled. |
-| `request_exit()` | Stops the loop without waiting for drive disable. |
-| `period()` | Returns the configured cycle period in nanoseconds. |
-| `number_of_controllers()` | Returns the number of configured controllers. |
 
 ## Layout
 
@@ -175,3 +95,124 @@ motor_manager/
 │   └── zeroerr/
 └── motor_manager/
 ```
+
+# Motor Manager
+
+이 프로젝트는 이기종간 통합 모터 제어를 위한 C++ 라이브러리이다.
+
+## clone
+
+```bash
+mkdir -p ~/colcon_ws/src
+cd ~/colcon_ws
+
+git clone https://github.com/SeonilChoi/motor_manager.git src
+```
+
+## Build
+
+```bash
+cd ~/colcon_ws
+
+rosdep install --from-paths src --ignore-src -r -y
+colcon build --packages-up-to motor_manager
+source install/setup.bash
+```
+
+## Configuration
+
+### Yaml example
+
+`master`, `controller`, 그리고 `driver`를 위한 설정파일은 아래와 같이 작성한다.
+
+```yaml
+period: 1000000
+masters:
+  - id: 0
+    type: ethercat
+    number_of_slaves: 1
+    ethercat_master_index: 0
+    slaves:
+      - controller_index: 0
+        driver_id: 0
+        alias: 0
+        position: 0
+        vendor_id: 0x5a65726f
+        product_id: 0x00029252
+        profile_mode: 0 # 0: Position Mode, 1: Velocity Mode, 2: Effort Mode
+
+drivers:
+  - id: 0
+    pulse_per_revolution: 524288
+    rated_effort: 52.0
+    unit_effort: 0.1
+    lower: -57.2957795131
+    upper: 57.2957795131
+    speed: 3000
+    acceleration: 143.2394487827
+    deceleration: 143.2394487827
+    profile_velocity: 143.2394487827
+    profile_acceleration: 143.2394487827
+    profile_deceleration: 143.2394487827
+    profile_position_value: 1
+    profile_velocity_value: 3
+    profile_effort_value: 4
+    type: zeroerr
+    param_file: ../param
+```
+
+`profile_mode`는 아래의 설정을 따른다.
+
+
+| Value | Mode             |
+| ----- | ---------------- |
+| `0`   | Profile position |
+| `1`   | Profile velocity |
+| `2`   | Profile effort   |
+
+
+`driver`의 하드웨어 설정을 위한 파라미터 파일은 아래와 같이 작성한다.
+
+```yaml
+items:
+  - { id: 30, index: 0x6060, subindex: 0x00, value: 1,       type: s8  } # Modes of operation  
+  - { id: 31, index: 0x3511, subindex: 0x00, value: 100,     type: s16 } # Effort setup for emergency stop
+  - { id: 32, index: 0x3512, subindex: 0x00, value: 50,      type: s16 } # Over-load level setup
+  - { id: 33, index: 0x3513, subindex: 0x00, value: 120,     type: s16 } # Over-speed level setup
+  - { id: 34, index: 0x3514, subindex: 0x00, value: 1,       type: s16 } # Motor working range setup
+  - { id: 35, index: 0x607F, subindex: 0x00, value: 2000000, type: u32 } # Max profile velocity
+  - { id: 36, index: 0x6082, subindex: 0x00, value: 500,     type: u32 } # End velocity
+  - { id: 37, index: 0x60B1, subindex: 0x00, value: 0, type: s32 } # Velocity offset
+  - { id: 38, index: 0x60B2, subindex: 0x00, value: 0, type: s16 } # Effort offset
+  - { id: 50, index: 0x6072, subindex: 0x00, value: 0, type: u16 } # Max effort
+  - { id: 51, index: 0x607B, subindex: 0x01, value: 0, type: s32 } # Min position range limit
+  - { id: 52, index: 0x607B, subindex: 0x02, value: 0, type: s32 } # Max position range limit
+  - { id: 51, index: 0x607D, subindex: 0x01, value: 0, type: s32 } # Min software position limit
+  - { id: 52, index: 0x607D, subindex: 0x02, value: 0, type: s32 } # Max software position limit
+  - { id: 53, index: 0x6080, subindex: 0x00, value: 0, type: u32 } # Max motor speed
+  - { id: 54, index: 0x6081, subindex: 0x00, value: 0, type: u32 } # Profile velocity
+  - { id: 55, index: 0x6083, subindex: 0x00, value: 0, type: u32 } # Profile acceleration
+  - { id: 56, index: 0x6084, subindex: 0x00, value: 0, type: u32 } # Profile deceleration
+  - { id: 57, index: 0x60C5, subindex: 0x00, value: 0, type: u32 } # Max acceleration
+  - { id: 58, index: 0x60C6, subindex: 0x00, value: 0, type: u32 } # Max deceleration
+
+interfaces:
+  - { id: 98, index: 0x1600                                     } # RxPDO
+  - { id: 0,  index: 0x6040, subindex: 0x00, size: 2, type: u16 } # Control word
+  - { id: 1,  index: 0x607A, subindex: 0x00, size: 4, type: s32 } # Target position
+  - { id: 2,  index: 0x60FF, subindex: 0x00, size: 4, type: s32 } # Target velocity
+  - { id: 3,  index: 0x6071, subindex: 0x00, size: 2, type: s16 } # Target effort
+  - { id: 99, index: 0x1A00                                     } # TxPDO
+  - { id: 4,  index: 0x6041, subindex: 0x00, size: 2, type: u16 } # Status word
+  - { id: 5,  index: 0x603F, subindex: 0x00, size: 2, type: u16 } # Error code
+  - { id: 6,  index: 0x6064, subindex: 0x00, size: 4, type: s32 } # Position actual value
+  - { id: 7,  index: 0x606C, subindex: 0x00, size: 4, type: s32 } # Velocity actual value
+  - { id: 8,  index: 0x6077, subindex: 0x00, size: 2, type: s16 } # Effort actual value
+```
+
+## Available types
+
+### Communication
+| Type | Status |
+| --- | --- |
+| `EtherCAT` | :white_check_mark: |
