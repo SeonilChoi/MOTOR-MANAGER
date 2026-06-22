@@ -28,25 +28,6 @@ The constructor loads the YAML configuration and initializes all masters and con
 | `period()` | Returns the configured period in nanoseconds. |
 | `number_of_controllers()` | Returns the number of configured slave/controller entries. |
 
-## Loop flow
-
-```mermaid
-flowchart LR
-  A[activate masters] --> B[lock memory + SCHED_FIFO]
-  B --> C[sleep until next period]
-  C --> D[apply application time]
-  D --> E[receive]
-  E --> F{state}
-  F -->|not enabled| G[enable]
-  F -->|stop requested| H[disable]
-  F -->|enabled| I[update]
-  G --> J[save clock]
-  H --> J
-  I --> J
-  J --> K[transmit]
-  K --> C
-```
-
 The controller update path reads every controller, runs each controller's set-point check, stops command output if any status frame has a nonzero `errorcode`, and writes new commands only when `write()` has provided a newer command frame.
 
 ## Configuration schema
@@ -63,63 +44,6 @@ EtherCAT, CANopen, and SocketCAN masters run in the real-time loop. Serial
 masters run in separate worker threads so blocking Dynamixel traffic does not
 delay the EtherCAT cycle.
 
-### EtherCAT master
-
-```yaml
-masters:
-  - id: 0
-    type: ethercat
-    number_of_slaves: 1
-    ethercat_master_index: 0
-    slaves:
-      - controller_index: 0
-        driver_id: 0
-        alias: 0
-        position: 0
-        vendor_id: 0x5a65726f
-        product_id: 0x00029252
-        profile_mode: 0
-```
-
-### CANopen master
-
-```yaml
-masters:
-  - id: 0
-    type: canopen
-    number_of_slaves: 1
-    can_interface_index: 0
-    can_bitrate: 1000000
-    slaves:
-      - controller_index: 0
-        driver_id: 0
-        can_id: 1
-        profile_mode: 0
-```
-
-### Driver
-
-```yaml
-drivers:
-  - id: 0
-    type: zeroerr
-    pulse_per_revolution: 524288
-    rated_effort: 52.0
-    unit_effort: 0.1
-    lower: -57.2957795131
-    upper: 57.2957795131
-    speed: 3000
-    acceleration: 143.2394487827
-    deceleration: 143.2394487827
-    profile_velocity: 143.2394487827
-    profile_acceleration: 143.2394487827
-    profile_deceleration: 143.2394487827
-    profile_position_value: 1
-    profile_velocity_value: 3
-    profile_effort_value: 4
-    param_file: ../param
-```
-
 Supported values in the current code:
 
 | Field | Supported values |
@@ -133,15 +57,5 @@ Supported values in the current code:
 ## Threading
 
 `write()` and `read()` share `command_` and `status_` through `frame_mutex_`. The real-time loop and serial workers copy command/status snapshots under that mutex, then perform controller and bus work outside the lock.
-
-```mermaid
-flowchart TB
-  W[write] -->|lock| BUF[command/status buffers]
-  R[read] -->|lock| BUF
-  RT[real-time loop] -->|short lock| BUF
-  SER[serial worker] -->|short lock| BUF
-  RT --> FIELDBUS[EtherCAT/CANopen/SocketCAN]
-  SER --> DXL[Dynamixel serial]
-```
 
 `request_stop()` and `request_exit()` use atomics and can be called from another thread.
