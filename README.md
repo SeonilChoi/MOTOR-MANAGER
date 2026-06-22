@@ -4,7 +4,7 @@
   <img src="images/banner.gif" alt="EtherCAT simultaneous control demo with Panasonic Minas actuators and Zeroerr eRob motors">
 </p>
 
-This example shows two Panasonic MINAS motors and three ZeroErr eRob motors controlled over EtherCAT and CANopen, respectively.
+This example shows two `Panasonic MINAS` motors and three `ZeroErr eRob` motors controlled over `EtherCAT` and `CANopen`, respectively.
 
 ## English Version
 
