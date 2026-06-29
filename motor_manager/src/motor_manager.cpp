@@ -43,6 +43,10 @@ void stack_prefault()
 
 motor_manager::MotorManager::MotorManager(const std::string& config_file)
 {
+    for (auto& request : controller_enable_requested_) {
+        request.store(true, std::memory_order_release);
+    }
+
     loadConfigurations(config_file);
     initialize();
 }
@@ -76,7 +80,25 @@ void motor_manager::MotorManager::read(motor_interface::motor_frame_t* status)
 
 void motor_manager::MotorManager::request_stop()
 {
-    on_disabled_.store(true, std::memory_order_release);
+    for (auto& request : controller_enable_requested_) {
+        request.store(false, std::memory_order_release);
+    }
+}
+
+void motor_manager::MotorManager::request(const int8_t* actions, const uint8_t size)
+{
+    if (actions == nullptr) {
+        return;
+    }
+
+    const uint8_t n = std::min(size, static_cast<uint8_t>(motor_interface::MAX_CONTROLLER_SIZE));
+    for (uint8_t controller_index = 0; controller_index < n; ++controller_index) {
+        if (actions[controller_index] == 0) {
+            controller_enable_requested_[controller_index].store(false, std::memory_order_release);
+        } else if (actions[controller_index] == 1) {
+            controller_enable_requested_[controller_index].store(true, std::memory_order_release);
+        }
+    }
 }
 
 void motor_manager::MotorManager::request_exit()
@@ -295,13 +317,37 @@ void motor_manager::MotorManager::stop()
     for (auto& m_iter : serial_masters_) m_iter.second->deactivate();
 }
 
+void motor_manager::MotorManager::enableController(const uint8_t controller_index)
+{
+    if (controller_index >= motor_interface::MAX_CONTROLLER_SIZE || !controllers_[controller_index]) return;
+
+    if (!controller_enabled_[controller_index].load(std::memory_order_acquire)) {
+        const bool enabled = controllers_[controller_index]->enable();
+        controller_enabled_[controller_index].store(enabled, std::memory_order_release);
+        if (enabled) {
+            controller_disabled_[controller_index].store(false, std::memory_order_release);
+        }
+    }
+}
+
 void motor_manager::MotorManager::enableControllers(const std::vector<uint8_t>& controller_indices)
 {
     for (uint8_t i : controller_indices) {
-        if (i >= motor_interface::MAX_CONTROLLER_SIZE || !controllers_[i]) continue;
+        enableController(i);
+    }
 
-        if (!controller_enabled_[i].load(std::memory_order_acquire)) {
-            controller_enabled_[i].store(controllers_[i]->enable(), std::memory_order_release);
+    refreshEnabled();
+}
+
+void motor_manager::MotorManager::disableController(const uint8_t controller_index)
+{
+    if (controller_index >= motor_interface::MAX_CONTROLLER_SIZE || !controllers_[controller_index]) return;
+
+    if (!controller_disabled_[controller_index].load(std::memory_order_acquire)) {
+        const bool disabled = controllers_[controller_index]->disable();
+        controller_disabled_[controller_index].store(disabled, std::memory_order_release);
+        if (disabled) {
+            controller_enabled_[controller_index].store(false, std::memory_order_release);
         }
     }
 }
@@ -309,53 +355,85 @@ void motor_manager::MotorManager::enableControllers(const std::vector<uint8_t>& 
 void motor_manager::MotorManager::disableControllers(const std::vector<uint8_t>& controller_indices)
 {
     for (uint8_t i : controller_indices) {
-        if (i >= motor_interface::MAX_CONTROLLER_SIZE || !controllers_[i]) continue;
-
-        if (!controller_disabled_[i].load(std::memory_order_acquire)) {
-            controller_disabled_[i].store(controllers_[i]->disable(), std::memory_order_release);
-        }
+        disableController(i);
     }
 
     refreshDisabled();
 }
 
+void motor_manager::MotorManager::updateController(const uint8_t controller_index)
+{
+    if (controller_index >= motor_interface::MAX_CONTROLLER_SIZE || !controllers_[controller_index]) return;
+    if (!controller_enabled_[controller_index].load(std::memory_order_acquire)) return;
+
+    motor_interface::motor_frame_t controller_status{};
+    controllers_[controller_index]->read(controller_status);
+
+    motor_interface::motor_frame_t pending_command{};
+    uint64_t pending_sequence{0};
+    bool has_pending_command{false};
+
+    {
+        std::lock_guard<std::mutex> lock(frame_mutex_);
+        status_[controller_index] = controller_status;
+
+        if (controller_status.errorcode == 0 &&
+            command_sequence_[controller_index] != applied_command_sequence_[controller_index])
+        {
+            pending_command = command_[controller_index];
+            pending_sequence = command_sequence_[controller_index];
+            has_pending_command = true;
+        }
+    }
+
+    controllers_[controller_index]->check(controller_status);
+
+    if (has_pending_command) {
+        controllers_[controller_index]->write(pending_command);
+
+        std::lock_guard<std::mutex> lock(frame_mutex_);
+        if (applied_command_sequence_[controller_index] < pending_sequence) {
+            applied_command_sequence_[controller_index] = pending_sequence;
+        }
+    }
+}
+
 void motor_manager::MotorManager::updateControllers(const std::vector<uint8_t>& controller_indices)
 {
     for (uint8_t i : controller_indices) {
+        updateController(i);
+    }
+}
+
+void motor_manager::MotorManager::applyControllerRequests(const std::vector<uint8_t>& controller_indices)
+{
+    for (uint8_t i : controller_indices) {
         if (i >= motor_interface::MAX_CONTROLLER_SIZE || !controllers_[i]) continue;
-        if (!controller_enabled_[i].load(std::memory_order_acquire)) continue;
 
-        motor_interface::motor_frame_t controller_status{};
-        controllers_[i]->read(controller_status);
-
-        motor_interface::motor_frame_t pending_command{};
-        uint64_t pending_sequence{0};
-        bool has_pending_command{false};
-
-        {
-            std::lock_guard<std::mutex> lock(frame_mutex_);
-            status_[i] = controller_status;
-
-            if (controller_status.errorcode == 0 &&
-                command_sequence_[i] != applied_command_sequence_[i])
-            {
-                pending_command = command_[i];
-                pending_sequence = command_sequence_[i];
-                has_pending_command = true;
-            }
-        }
-
-        controllers_[i]->check(controller_status);
-
-        if (has_pending_command) {
-            controllers_[i]->write(pending_command);
-
-            std::lock_guard<std::mutex> lock(frame_mutex_);
-            if (applied_command_sequence_[i] < pending_sequence) {
-                applied_command_sequence_[i] = pending_sequence;
-            }
+        if (controller_enable_requested_[i].load(std::memory_order_acquire)) {
+            enableController(i);
+            updateController(i);
+        } else {
+            disableController(i);
         }
     }
+
+    refreshEnabled();
+    refreshDisabled();
+}
+
+void motor_manager::MotorManager::refreshEnabled()
+{
+    bool all_enabled = true;
+    for (uint8_t i : controller_indices_) {
+        all_enabled = all_enabled && controller_enabled_[i].load(std::memory_order_acquire);
+    }
+    for (const auto& controller_indices_iter : serial_controller_indices_) {
+        for (uint8_t i : controller_indices_iter.second) {
+            all_enabled = all_enabled && controller_enabled_[i].load(std::memory_order_acquire);
+        }
+    }
+    is_enabled_.store(all_enabled, std::memory_order_release);
 }
 
 void motor_manager::MotorManager::refreshDisabled()
@@ -431,12 +509,7 @@ void motor_manager::MotorManager::serialRun(uint8_t master_id)
             motor_interface::MotorMaster& master = *master_iter->second;
             master.receive();
 
-            if (on_disabled_.load(std::memory_order_acquire)) {
-                disableControllers(controller_indices_iter->second);
-            } else {
-                enableControllers(controller_indices_iter->second);
-                updateControllers(controller_indices_iter->second);
-            }
+            applyControllerRequests(controller_indices_iter->second);
 
             master.transmit();
 
@@ -537,14 +610,7 @@ void motor_manager::MotorManager::run()
 
             rethrowSerialExceptionIfAny();
 
-            if (is_disabled_.load(std::memory_order_acquire)) {
-                break;
-            } else if (on_disabled_.load(std::memory_order_acquire)) {
-                disableControllers(controller_indices_);
-            } else {
-                enableControllers(controller_indices_);
-                updateControllers(controller_indices_);
-            }
+            applyControllerRequests(controller_indices_);
 
             for (auto& m_iter : masters_) {
                 m_iter.second->save_clock();

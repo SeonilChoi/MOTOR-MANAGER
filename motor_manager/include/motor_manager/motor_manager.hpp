@@ -2,6 +2,7 @@
 #define MOTOR_MANAGER_MOTOR_MANAGER_HPP_
 
 #include <atomic>
+#include <cstdint>
 #include <exception>
 #include <memory>
 #include <mutex>
@@ -64,11 +65,15 @@ public:
 
     void request_stop();
 
+    void request(const int8_t* actions, uint8_t size);
+
     void request_exit();
 
     uint32_t period() const { return period_; }
 
     uint8_t number_of_controllers() const { return number_of_controllers_; }
+
+    bool is_enabled() const { return is_enabled_.load(std::memory_order_acquire); }
 
 private:
     void loadConfigurations(const std::string& config_file);
@@ -79,11 +84,21 @@ private:
 
     void stop();
 
+    void enableController(uint8_t controller_index);
+
     void enableControllers(const std::vector<uint8_t>& controller_indices);
+
+    void disableController(uint8_t controller_index);
 
     void disableControllers(const std::vector<uint8_t>& controller_indices);
 
+    void updateController(uint8_t controller_index);
+
     void updateControllers(const std::vector<uint8_t>& controller_indices);
+
+    void applyControllerRequests(const std::vector<uint8_t>& controller_indices);
+
+    void refreshEnabled();
 
     void refreshDisabled();
 
@@ -120,7 +135,9 @@ private:
 
     std::atomic<bool> controller_disabled_[motor_interface::MAX_CONTROLLER_SIZE]{};
 
-    std::atomic<bool> on_disabled_{false};
+    std::atomic<bool> is_enabled_{false};
+
+    std::atomic<bool> controller_enable_requested_[motor_interface::MAX_CONTROLLER_SIZE]{};
 
     std::atomic<bool> running_{true};
 
