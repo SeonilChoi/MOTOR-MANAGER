@@ -1,0 +1,32 @@
+protocol:
+  broadcast_id: 0xFE
+  read: 0x02
+  write: 0x03
+  status: 0x55
+  bulk_read: 0x92
+  bulk_write: 0x93
+
+model_file: control_table/xm430_w350.model
+
+items:
+  - { id: 68, name: "Status Return Level", type: u8,  value: 2 }
+  - { id: 30, name: "Operating Mode",      type: s8,  value: 3 } # overridden by profile_mode
+  - { id: 50, name: "Current Limit",       type: u16, value: 0 }
+  - { id: 51, name: "Min Position Limit",  type: s32, value: 0 }
+  - { id: 52, name: "Max Position Limit",  type: s32, value: 0 }
+  - { id: 53, name: "Velocity Limit",      type: u32, value: 0 }
+  - { id: 55, name: "Profile Acceleration", type: u32, value: 0 }
+  - { id: 54, name: "Profile Velocity",    type: u32, value: 0 }
+
+interfaces:
+  - { id: 98, index: 0 } # Bulk Write
+  - { id: 0, name: "Torque Enable",   type: u8  }
+  - { id: 1, name: "Goal Position",   type: s32 }
+  - { id: 2, name: "Goal Velocity",   type: s32 }
+  - { id: 3, name: "Goal Current",    type: s16 }
+  - { id: 99, index: 0 } # Bulk Read
+  - { id: 4, name: "Torque Enable",         type: u8  }
+  - { id: 5, name: "Hardware Error Status", type: u8  }
+  - { id: 6, name: "Present Position",      type: s32 }
+  - { id: 7, name: "Present Velocity",      type: s32 }
+  - { id: 8, name: "Present Current",       type: s16 }

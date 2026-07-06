@@ -10,6 +10,7 @@
   <buildtool_depend>ament_cmake</buildtool_depend>
 
   <depend>common_motor_interface</depend>
+  <depend>ament_index_cpp</depend>
   <build_depend>yaml-cpp</build_depend>
   <exec_depend>yaml-cpp</exec_depend>
 

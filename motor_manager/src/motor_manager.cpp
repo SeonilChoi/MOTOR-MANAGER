@@ -8,6 +8,7 @@
 #include <errno.h>
 #include <unistd.h>
 #include <sys/mman.h>
+#include <ament_index_cpp/get_package_share_directory.hpp>
 #include <yaml-cpp/yaml.h>
 
 #include "motor_manager/motor_manager.hpp"
@@ -56,6 +57,25 @@ bool requests_position_set_point(const motor_interface::motor_frame_t& command)
 {
     return has_target_interface(command, motor_interface::ID_CONTROLWORD) &&
            has_target_interface(command, motor_interface::ID_TARGET_POSITION);
+}
+
+std::filesystem::path resolve_package_uri(const std::string& uri)
+{
+    const std::string prefix = "package://";
+    if (uri.rfind(prefix, 0) != 0) {
+        return {};
+    }
+
+    const std::string resource = uri.substr(prefix.size());
+    const std::size_t separator = resource.find('/');
+    if (separator == std::string::npos || separator == 0) {
+        throw std::runtime_error("Invalid package URI: " + uri);
+    }
+
+    std::filesystem::path path =
+        ament_index_cpp::get_package_share_directory(resource.substr(0, separator));
+    path /= resource.substr(separator + 1);
+    return path.lexically_normal();
 }
 
 } // namespace
@@ -289,11 +309,14 @@ void motor_manager::MotorManager::loadConfigurations(const std::string& config_f
         }
         }
 
-        std::filesystem::path param_path = d["param_file"].as<std::string>();
-        if (param_path.is_absolute()) {
+        const std::string param_file = d["param_file"].as<std::string>();
+        std::filesystem::path param_path = resolve_package_uri(param_file);
+        if (!param_path.empty()) {
             param_path = param_path.lexically_normal();
+        } else if (std::filesystem::path(param_file).is_absolute()) {
+            param_path = std::filesystem::path(param_file).lexically_normal();
         } else {
-            param_path = (std::filesystem::path(config_file).parent_path() / param_path).lexically_normal();
+            param_path = (std::filesystem::path(config_file).parent_path() / param_file).lexically_normal();
         }
 
         const std::string ext = param_path.extension().string();

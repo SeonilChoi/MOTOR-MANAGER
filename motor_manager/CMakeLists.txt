@@ -18,6 +18,7 @@ target_link_libraries(motor_manager
   PRIVATE cubemars::cubemars
   PRIVATE yaml-cpp
 )
+ament_target_dependencies(motor_manager ament_index_cpp)
 
 target_compile_features(motor_manager PUBLIC cxx_std_17)
 

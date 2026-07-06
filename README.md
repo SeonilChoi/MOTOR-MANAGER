@@ -68,7 +68,7 @@ drivers:
     profile_velocity_value: 3
     profile_effort_value: 4
     type: zeroerr
-    param_file: ../param
+    param_file: package://motor_manager/hardware/zeroerr/param
 ```
 
 `profile_mode` follows the values below.
@@ -78,6 +78,15 @@ drivers:
 | `0` | Profile position |
 | `1` | Profile velocity |
 | `2` | Profile effort |
+
+In the full workspace, runtime bridge examples live in
+`ros2/motion_system_ros2/motion_control_bridge/config`. Driver hardware
+parameter files live under `lib/motor_manager/hardware/<driver>/param` and are
+referenced with `package://motor_manager/...` paths. When `param_file` points to
+a directory, `motor_manager` loads `<param_file>/<driver_type>.yaml`.
+Dynamixel model files are stored under
+`hardware/dynamixel/param/control_table` and are referenced relative to the
+Dynamixel YAML file.
 
 The parameter file for `driver` hardware configuration can be written as follows.
 
@@ -200,7 +209,7 @@ drivers:
     profile_velocity_value: 3
     profile_effort_value: 4
     type: zeroerr
-    param_file: ../param
+    param_file: package://motor_manager/hardware/zeroerr/param
 ```
 
 `profile_mode`는 아래의 설정을 따른다.
@@ -210,6 +219,14 @@ drivers:
 | `0` | Profile position |
 | `1` | Profile velocity |
 | `2` | Profile effort |
+
+전체 workspace에서 런타임 bridge 예제는
+`ros2/motion_system_ros2/motion_control_bridge/config`에 둔다. driver 하드웨어
+파라미터 파일은 `lib/motor_manager/hardware/<driver>/param` 아래에 있으며
+`package://motor_manager/...` 경로로 참조한다. `param_file`이 디렉터리를
+가리키면 `motor_manager`는 `<param_file>/<driver_type>.yaml`을 읽는다.
+Dynamixel model 파일은 `hardware/dynamixel/param/control_table`에 있으며
+Dynamixel YAML 파일 기준 상대 경로로 참조된다.
 
 `driver`의 하드웨어 설정을 위한 파라미터 파일은 아래와 같이 작성한다.
 

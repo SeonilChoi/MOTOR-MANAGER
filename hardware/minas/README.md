@@ -15,7 +15,7 @@ Select this driver with:
 drivers:
   - id: 0
     type: minas
-    param_file: ../param
+    param_file: package://motor_manager/hardware/minas/param
 ```
 
 The driver loads `<param_file>/minas.yaml`.

@@ -4,6 +4,7 @@ project(motor_manager VERSION 0.1.0 LANGUAGES CXX)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 find_package(ament_cmake REQUIRED)
+find_package(ament_index_cpp REQUIRED)
 find_package(common_motor_interface REQUIRED)
 find_package(yaml-cpp REQUIRED)
 
@@ -44,6 +45,10 @@ install(DIRECTORY hardware/zeroerr/include/ DESTINATION include)
 install(DIRECTORY hardware/dynamixel/include/ DESTINATION include)
 install(DIRECTORY hardware/cubemars/include/ DESTINATION include)
 install(DIRECTORY motor_manager/include/ DESTINATION include)
+install(DIRECTORY hardware/minas/param/ DESTINATION share/${PROJECT_NAME}/hardware/minas/param)
+install(DIRECTORY hardware/zeroerr/param/ DESTINATION share/${PROJECT_NAME}/hardware/zeroerr/param)
+install(DIRECTORY hardware/dynamixel/param/ DESTINATION share/${PROJECT_NAME}/hardware/dynamixel/param)
+install(DIRECTORY hardware/cubemars/param/ DESTINATION share/${PROJECT_NAME}/hardware/cubemars/param)
 
 install(
   TARGETS motor_manager ethercat canopen serial socketcan minas motor_interface zeroerr dynamixel cubemars
@@ -55,5 +60,5 @@ install(
 
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_include_directories(include)
-ament_export_dependencies(common_motor_interface)
+ament_export_dependencies(common_motor_interface ament_index_cpp)
 ament_package()

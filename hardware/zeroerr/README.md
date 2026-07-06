@@ -28,7 +28,7 @@ drivers:
     profile_velocity_value: 3
     profile_effort_value: 4
     type: zeroerr
-    param_file: ../param
+    param_file: package://motor_manager/hardware/zeroerr/param
 ```
 
 ### Parameter
@@ -117,7 +117,7 @@ drivers:
     profile_velocity_value: 3
     profile_effort_value: 4
     type: zeroerr
-    param_file: ../param
+    param_file: package://motor_manager/hardware/zeroerr/param
 ```
 
 ### Parameter
