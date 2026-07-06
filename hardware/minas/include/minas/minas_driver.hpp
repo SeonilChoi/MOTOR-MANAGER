@@ -19,6 +19,8 @@ public:
 
     bool isReceived(const uint8_t* data, uint8_t* out) override;
 
+    uint16_t newSetPointControlword() const override;
+
     double position(const int32_t value) override;
 
     double velocity(const int32_t value) override;

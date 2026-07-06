@@ -16,6 +16,7 @@ constexpr double DEGREE_PER_REVOLUTION = 360.0;
 constexpr double RAD_TO_DEG = 180.0 / M_PI;
 constexpr double DEG_TO_RAD = M_PI / 180.0;
 constexpr double DXL_ACCEL_REV_PER_MIN2_PER_UNIT = 214.577;
+constexpr uint16_t CW_TORQUE_ENABLE = 1;
 
 std::string trim(const std::string& value)
 {
@@ -245,6 +246,11 @@ bool dynamixel::DynamixelDriver::isReceived(const uint8_t* data, uint8_t* out)
     (void)data;
     (void)out;
     return false;
+}
+
+uint16_t dynamixel::DynamixelDriver::newSetPointControlword() const
+{
+    return CW_TORQUE_ENABLE;
 }
 
 double dynamixel::DynamixelDriver::position(const int32_t value)

@@ -14,6 +14,7 @@ constexpr uint16_t CW_ENABLE_OPERATION = 0x000F;
 constexpr uint16_t CW_DISABLE_VOLTAGE = 0x0000;
 constexpr uint16_t CW_DISABLE_OPERATION = 0x0007;
 constexpr uint16_t CW_FAULT_RESET = 0x0080;
+constexpr uint16_t CW_NEW_SET_POINT = 0x003F;
 
 bool isFault(uint16_t sw)
 {
@@ -275,6 +276,11 @@ bool minas::MinasDriver::isReceived(const uint8_t* data, uint8_t* out)
         return true;
     }
     return false;
+}
+
+uint16_t minas::MinasDriver::newSetPointControlword() const
+{
+    return CW_NEW_SET_POINT;
 }
 
 double minas::MinasDriver::position(const int32_t value)

@@ -44,6 +44,11 @@ public:
 
     virtual void read(motor_frame_t& status) = 0;
 
+    uint16_t newSetPointControlword() const
+    {
+        return driver_ ? driver_->newSetPointControlword() : 0;
+    }
+
     uint8_t master_id() const { return master_id_; }
 
     uint8_t driver_id() const { return driver_id_; }

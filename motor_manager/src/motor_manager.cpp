@@ -39,6 +39,25 @@ void stack_prefault()
     std::memset(dummy, 0, sizeof(dummy));
 }
 
+bool has_target_interface(const motor_interface::motor_frame_t& command, uint8_t id)
+{
+    const uint8_t n = std::min(
+        command.number_of_target_interfaces,
+        motor_interface::MAX_INTERFACE_SIZE);
+
+    for (uint8_t i = 0; i < n; ++i) {
+        if (command.target_interface_id[i] == id) return true;
+    }
+
+    return false;
+}
+
+bool requests_position_set_point(const motor_interface::motor_frame_t& command)
+{
+    return has_target_interface(command, motor_interface::ID_CONTROLWORD) &&
+           has_target_interface(command, motor_interface::ID_TARGET_POSITION);
+}
+
 } // namespace
 
 motor_manager::MotorManager::MotorManager(const std::string& config_file)
@@ -63,9 +82,13 @@ void motor_manager::MotorManager::write(const motor_interface::motor_frame_t* co
     const uint8_t n = std::min(size, motor_interface::MAX_CONTROLLER_SIZE);
     for (uint8_t i = 0; i < n; ++i) {
         const uint8_t controller_index = command[i].controller_index;
-        if (controller_index >= number_of_controllers_) continue;
+        if (controller_index >= number_of_controllers_ || !controllers_[controller_index]) continue;
 
         command_[controller_index] = command[i];
+        if (requests_position_set_point(command_[controller_index])) {
+            command_[controller_index].controlword =
+                controllers_[controller_index]->newSetPointControlword();
+        }
         ++command_sequence_[controller_index];
     }
 }

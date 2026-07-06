@@ -138,6 +138,8 @@ public:
 
     virtual bool isReceived(const uint8_t* data, uint8_t* out) = 0;
 
+    virtual uint16_t newSetPointControlword() const { return 0; }
+
     virtual double position(const int32_t value) = 0;
 
     virtual double velocity(const int32_t value) = 0;

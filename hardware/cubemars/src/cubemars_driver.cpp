@@ -58,6 +58,7 @@ void setFrameBytes(socketcan::socketcan_frame_t& frame, const uint8_t (&bytes)[8
 }
 
 constexpr uint32_t CUBEMARS_EXTENDED_STATUS_BASE = 0x2900;
+constexpr uint16_t CW_SOCKETCAN_SET_POINT = 0x0001;
 constexpr double DEGREE_SCALE = 57.29577951308232;
 
 constexpr double degrees(double value)
@@ -181,6 +182,11 @@ bool cubemars::CubemarsDriver::isReceived(const uint8_t* data, uint8_t* out)
     (void)data;
     (void)out;
     return false;
+}
+
+uint16_t cubemars::CubemarsDriver::newSetPointControlword() const
+{
+    return CW_SOCKETCAN_SET_POINT;
 }
 
 double cubemars::CubemarsDriver::position(const int32_t value)
