@@ -16,9 +16,9 @@ target_link_libraries(motor_manager
   PRIVATE zeroerr::zeroerr
   PRIVATE dynamixel::dynamixel
   PRIVATE cubemars::cubemars
+  PRIVATE ament_index_cpp::ament_index_cpp
   PRIVATE yaml-cpp
 )
-ament_target_dependencies(motor_manager ament_index_cpp)
 
 target_compile_features(motor_manager PUBLIC cxx_std_17)
 
