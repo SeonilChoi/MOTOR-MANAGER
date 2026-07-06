@@ -330,15 +330,6 @@ void motor_manager::MotorManager::enableController(const uint8_t controller_inde
     }
 }
 
-void motor_manager::MotorManager::enableControllers(const std::vector<uint8_t>& controller_indices)
-{
-    for (uint8_t i : controller_indices) {
-        enableController(i);
-    }
-
-    refreshEnabled();
-}
-
 void motor_manager::MotorManager::disableController(const uint8_t controller_index)
 {
     if (controller_index >= motor_interface::MAX_CONTROLLER_SIZE || !controllers_[controller_index]) return;
@@ -350,15 +341,6 @@ void motor_manager::MotorManager::disableController(const uint8_t controller_ind
             controller_enabled_[controller_index].store(false, std::memory_order_release);
         }
     }
-}
-
-void motor_manager::MotorManager::disableControllers(const std::vector<uint8_t>& controller_indices)
-{
-    for (uint8_t i : controller_indices) {
-        disableController(i);
-    }
-
-    refreshDisabled();
 }
 
 void motor_manager::MotorManager::updateController(const uint8_t controller_index)
@@ -395,13 +377,6 @@ void motor_manager::MotorManager::updateController(const uint8_t controller_inde
         if (applied_command_sequence_[controller_index] < pending_sequence) {
             applied_command_sequence_[controller_index] = pending_sequence;
         }
-    }
-}
-
-void motor_manager::MotorManager::updateControllers(const std::vector<uint8_t>& controller_indices)
-{
-    for (uint8_t i : controller_indices) {
-        updateController(i);
     }
 }
 

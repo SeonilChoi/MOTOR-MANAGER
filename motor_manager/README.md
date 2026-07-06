@@ -37,9 +37,6 @@
 | `initialize()` | Initializes `master`, `driver`, and `controller` objects. |
 | `start()` | Runs `master->activate()` for every master. |
 | `stop()` | Runs `master->deactivate()` for every master. |
-| `enableControllers(controller_indices)` | Runs `controller->enable()` for the given controller indices. |
-| `disableControllers(controller_indices)` | Runs `controller->disable()` for the given controller indices. |
-| `updateControllers(controller_indices)` | Reads status with `controller->read()`, checks status with `controller->check()`, and writes a pending command with `controller->write()` when a new command exists. |
 | `refreshDisabled()` | Checks whether all controllers are in the `Disable` state and updates `is_disabled_`. |
 | `startSerial()` | Starts the serial loop in separate threads. |
 | `stopSerial()` | Stops the serial loop. |
@@ -120,9 +117,6 @@ These members are not OS-level shared memory. They are shared state inside one p
 | `initialize()` | `master`, `driver`, `controller`를 초기화한다. |
 | `start()` | 모든 `master->activate()`를 실행한다. |
 | `stop()` | 모든 `master->deactivate()`를 실행한다. |
-| `enableControllers(controller_indices)` | 전달받은 controller index 목록에 대해 `controller->enable()`을 실행한다. |
-| `disableControllers(controller_indices)` | 전달받은 controller index 목록에 대해 `controller->disable()`을 실행한다. |
-| `updateControllers(controller_indices)` | `controller->read()`로 상태를 읽고, `controller->check()`로 상태를 확인한 뒤, 새로운 command가 있으면 `controller->write()`로 명령을 보낸다. |
 | `refreshDisabled()` | 모든 controller가 `Disable` 상태인지 확인하고 `is_disabled_`를 갱신한다. |
 | `startSerial()` | serial 루프를 별도 스레드로 실행한다. |
 | `stopSerial()` | serial 루프를 종료한다. |

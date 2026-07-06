@@ -86,15 +86,9 @@ private:
 
     void enableController(uint8_t controller_index);
 
-    void enableControllers(const std::vector<uint8_t>& controller_indices);
-
     void disableController(uint8_t controller_index);
 
-    void disableControllers(const std::vector<uint8_t>& controller_indices);
-
     void updateController(uint8_t controller_index);
-
-    void updateControllers(const std::vector<uint8_t>& controller_indices);
 
     void applyControllerRequests(const std::vector<uint8_t>& controller_indices);
 
