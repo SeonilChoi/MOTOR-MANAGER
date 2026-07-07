@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <chrono>
+#include <cstdint>
 #include <cstring>
 #include <filesystem>
 
@@ -80,7 +81,8 @@ std::filesystem::path resolve_package_uri(const std::string& uri)
 
 } // namespace
 
-motor_manager::MotorManager::MotorManager(const std::string& config_file)
+motor_manager::MotorManager::MotorManager(const std::string& config_file, const bool debug)
+    : debug_(debug)
 {
     for (auto& request : controller_enable_requested_) {
         request.store(true, std::memory_order_release);
@@ -277,6 +279,11 @@ void motor_manager::MotorManager::loadConfigurations(const std::string& config_f
         motor_interface::driver_config_t d_cfg{};
         d_cfg.id = d["id"].as<uint8_t>();
         d_cfg.pulse_per_revolution = d["pulse_per_revolution"].as<uint32_t>();
+        d_cfg.zero_offset = d["zero_offset"] ? d["zero_offset"].as<int32_t>() : 0;
+        d_cfg.gear_ratio = d["gear_ratio"] ? d["gear_ratio"].as<double>() : 1.0;
+        if (d_cfg.gear_ratio == 0.0) {
+            throw std::runtime_error("Driver gear_ratio must not be zero.");
+        }
         d_cfg.rated_effort = d["rated_effort"].as<double>();
         d_cfg.unit_effort = d["unit_effort"].as<double>();
         d_cfg.lower = d["lower"].as<double>();
@@ -339,6 +346,7 @@ void motor_manager::MotorManager::initialize()
         const uint8_t m_id = controllers_[i]->master_id();
         const uint8_t d_id = controllers_[i]->driver_id();
 
+        controllers_[i]->set_debug_mode(debug_);
         controllers_[i]->initialize(*masters_.at(m_id), *drivers_.at(d_id));
     }
 
@@ -346,6 +354,7 @@ void motor_manager::MotorManager::initialize()
         motor_interface::MotorMaster& master = *serial_masters_.at(controller_indices_iter.first);
         for (uint8_t i : controller_indices_iter.second) {
             const uint8_t d_id = controllers_[i]->driver_id();
+            controllers_[i]->set_debug_mode(debug_);
             controllers_[i]->initialize(master, *drivers_.at(d_id));
         }
     }

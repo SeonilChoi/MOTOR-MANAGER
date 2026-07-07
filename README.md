@@ -54,6 +54,8 @@ masters:
 drivers:
   - id: 0
     pulse_per_revolution: 524288
+    zero_offset: 0
+    gear_ratio: 1.0
     rated_effort: 52.0
     unit_effort: 0.1
     lower: -57.2957795131
@@ -195,6 +197,8 @@ masters:
 drivers:
   - id: 0
     pulse_per_revolution: 524288
+    zero_offset: 0
+    gear_ratio: 1.0
     rated_effort: 52.0
     unit_effort: 0.1
     lower: -57.2957795131

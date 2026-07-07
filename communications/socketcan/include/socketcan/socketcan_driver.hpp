@@ -26,7 +26,8 @@ public:
     virtual bool encodeSocketcanCommand(
         uint8_t can_id,
         const motor_interface::motor_frame_t& command,
-        socketcan_frame_t& frame) const = 0;
+        socketcan_frame_t& frame,
+        bool debug_mode) const = 0;
 
     virtual bool acceptsSocketcanStatusFrame(
         uint8_t can_id,

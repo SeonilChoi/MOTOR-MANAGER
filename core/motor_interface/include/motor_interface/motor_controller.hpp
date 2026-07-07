@@ -44,6 +44,8 @@ public:
 
     virtual void read(motor_frame_t& status) = 0;
 
+    void set_debug_mode(bool debug_mode) { debug_mode_ = debug_mode; }
+
     uint16_t newSetPointControlword() const
     {
         return driver_ ? driver_->newSetPointControlword() : 0;
@@ -63,6 +65,8 @@ protected:
     MotorDriver* driver_{nullptr};
 
     DriverState current_driver_state_{DriverState::Fault};
+
+    bool debug_mode_{false};
 
     const uint8_t index_;
 

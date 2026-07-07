@@ -14,6 +14,8 @@ Example:
 drivers:
   - id: 0
     pulse_per_revolution: 524288
+    zero_offset: 0
+    gear_ratio: 1.0
     rated_effort: 25.0
     unit_effort: 0.001
     lower: -57.2957795131
@@ -103,6 +105,8 @@ interfaces:
 drivers:
   - id: 0
     pulse_per_revolution: 524288
+    zero_offset: 0
+    gear_ratio: 1.0
     rated_effort: 25.0
     unit_effort: 0.001
     lower: -57.2957795131

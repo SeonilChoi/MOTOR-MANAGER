@@ -208,7 +208,9 @@ void serial::SerialController::write(const motor_interface::motor_frame_t& comma
         if (id == motor_interface::ID_CONTROLWORD) {
             fillInterfaceValue(*descriptor, command.controlword, rx_interfaces[i]);
         } else if (id == motor_interface::ID_TARGET_POSITION) {
-            fillInterfaceValue(*descriptor, driver_->position(command.position), rx_interfaces[i]);
+            const int32_t target_position =
+                debug_mode_ ? command.encoder : driver_->position(command.position);
+            fillInterfaceValue(*descriptor, target_position, rx_interfaces[i]);
         } else if (id == motor_interface::ID_TARGET_VELOCITY) {
             fillInterfaceValue(*descriptor, driver_->velocity(command.velocity), rx_interfaces[i]);
         } else if (id == motor_interface::ID_TARGET_EFFORT) {
@@ -233,7 +235,9 @@ void serial::SerialController::read(motor_interface::motor_frame_t& status)
         } else if (e.id == motor_interface::ID_ERRORCODE) {
             status.errorcode = static_cast<uint16_t>(readUnsignedValue(e));
         } else if (e.id == motor_interface::ID_CURRENT_POSITION) {
-            status.position = driver_->position(static_cast<int32_t>(readSignedValue(e)));
+            const int32_t value = static_cast<int32_t>(readSignedValue(e));
+            status.encoder = value;
+            status.position = driver_->position(value);
         } else if (e.id == motor_interface::ID_CURRENT_VELOCITY) {
             status.velocity = driver_->velocity(static_cast<int32_t>(readSignedValue(e)));
         } else if (e.id == motor_interface::ID_CURRENT_EFFORT) {

@@ -104,7 +104,9 @@ void ethercat::EthercatController::write(const motor_interface::motor_frame_t& c
             rx_interfaces[i].id = id;
             rx_interfaces[i].type = motor_interface::DataType::S32;
             rx_interfaces[i].size = 4;
-            motor_interface::fill<int32_t>(driver_->position(command.position), rx_interfaces[i].data);
+            const int32_t target_position =
+                debug_mode_ ? command.encoder : driver_->position(command.position);
+            motor_interface::fill<int32_t>(target_position, rx_interfaces[i].data);
         } else if (id == motor_interface::ID_TARGET_VELOCITY) {
             rx_interfaces[i].id = id;
             rx_interfaces[i].type = motor_interface::DataType::S32;
@@ -135,6 +137,7 @@ void ethercat::EthercatController::read(motor_interface::motor_frame_t& status)
             status.errorcode = motor_interface::value<uint16_t>(e.data);
         } else if (e.id == motor_interface::ID_CURRENT_POSITION) {
             int32_t value = motor_interface::value<int32_t>(tx_interfaces_[i].data);
+            status.encoder = value;
             status.position = driver_->position(value);
         } else if (e.id == motor_interface::ID_CURRENT_VELOCITY) {
             status.velocity = driver_->velocity(motor_interface::value<int32_t>(e.data));

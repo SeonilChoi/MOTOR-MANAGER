@@ -1,3 +1,5 @@
+#include <algorithm>
+#include <cmath>
 #include <stdexcept>
 
 #include <yaml-cpp/yaml.h>
@@ -71,28 +73,53 @@ void zeroerr::ZeroerrDriver::loadParameters(const std::string& param_file)
         e_cfg.type = motor_interface::toDataType(i["type"].as<std::string>());
 
         if (e_cfg.id == motor_interface::ID_MIN_POSITION_LIMIT) {
+            const double lower =
+                config_.lower * config_.gear_ratio /
+                DEGREE_PER_REVOLUTION * config_.pulse_per_revolution +
+                config_.zero_offset;
+            const double upper =
+                config_.upper * config_.gear_ratio /
+                DEGREE_PER_REVOLUTION * config_.pulse_per_revolution +
+                config_.zero_offset;
             motor_interface::fill<int32_t>(
-                static_cast<int32_t>(config_.lower / DEGREE_PER_REVOLUTION * config_.pulse_per_revolution),
+                static_cast<int32_t>(std::min(lower, upper)),
                 e_cfg.data
             );
         } else if (e_cfg.id == motor_interface::ID_MAX_POSITION_LIMIT) {
+            const double lower =
+                config_.lower * config_.gear_ratio /
+                DEGREE_PER_REVOLUTION * config_.pulse_per_revolution +
+                config_.zero_offset;
+            const double upper =
+                config_.upper * config_.gear_ratio /
+                DEGREE_PER_REVOLUTION * config_.pulse_per_revolution +
+                config_.zero_offset;
             motor_interface::fill<int32_t>(
-                static_cast<int32_t>(config_.upper / DEGREE_PER_REVOLUTION * config_.pulse_per_revolution),
+                static_cast<int32_t>(std::max(lower, upper)),
                 e_cfg.data
             );
         } else if (e_cfg.id == motor_interface::ID_PROFILE_VELOCITY) {
+            const double raw_velocity =
+                std::fabs(config_.profile_velocity * config_.gear_ratio) /
+                DEGREE_PER_REVOLUTION * config_.pulse_per_revolution;
             motor_interface::fill<uint32_t>(
-                static_cast<uint32_t>(config_.profile_velocity / DEGREE_PER_REVOLUTION * config_.pulse_per_revolution),
+                static_cast<uint32_t>(raw_velocity),
                 e_cfg.data
             );
         } else if (e_cfg.id == motor_interface::ID_PROFILE_ACCELERATION) {
+            const double raw_acceleration =
+                std::fabs(config_.profile_acceleration * config_.gear_ratio) /
+                DEGREE_PER_REVOLUTION * config_.pulse_per_revolution;
             motor_interface::fill<uint32_t>(
-                static_cast<uint32_t>(config_.profile_acceleration / DEGREE_PER_REVOLUTION * config_.pulse_per_revolution),
+                static_cast<uint32_t>(raw_acceleration),
                 e_cfg.data
             );
         } else if (e_cfg.id == motor_interface::ID_PROFILE_DECELERATION) {
+            const double raw_deceleration =
+                std::fabs(config_.profile_deceleration * config_.gear_ratio) /
+                DEGREE_PER_REVOLUTION * config_.pulse_per_revolution;
             motor_interface::fill<uint32_t>(
-                static_cast<uint32_t>(config_.profile_deceleration / DEGREE_PER_REVOLUTION * config_.pulse_per_revolution),
+                static_cast<uint32_t>(raw_deceleration),
                 e_cfg.data
             );
         } else {
@@ -282,30 +309,43 @@ uint16_t zeroerr::ZeroerrDriver::newSetPointControlword() const
 
 double zeroerr::ZeroerrDriver::position(const int32_t value)
 {
-    return static_cast<double>(value) / static_cast<double>(config_.pulse_per_revolution) * DEGREE_PER_REVOLUTION;
+    const double encoder_position =
+        (static_cast<double>(value) - config_.zero_offset) /
+        static_cast<double>(config_.pulse_per_revolution) * DEGREE_PER_REVOLUTION;
+    return encoder_position / config_.gear_ratio;
 }
 
 double zeroerr::ZeroerrDriver::velocity(const int32_t value)
 {
-    return static_cast<double>(value) / static_cast<double>(config_.pulse_per_revolution) * DEGREE_PER_REVOLUTION;
+    const double encoder_velocity =
+        static_cast<double>(value) / static_cast<double>(config_.pulse_per_revolution) * DEGREE_PER_REVOLUTION;
+    return encoder_velocity / config_.gear_ratio;
 }
 
 double zeroerr::ZeroerrDriver::effort(const int16_t value)
 {
-    return config_.rated_effort * 0.01 * static_cast<double>(value) * config_.unit_effort;
+    const double motor_effort =
+        config_.rated_effort * 0.01 * static_cast<double>(value) * config_.unit_effort;
+    return motor_effort * config_.gear_ratio;
 }
 
 int32_t zeroerr::ZeroerrDriver::position(const double value)
 {
-    return static_cast<int32_t>(value / DEGREE_PER_REVOLUTION * config_.pulse_per_revolution);
+    return static_cast<int32_t>(
+        value * config_.gear_ratio /
+        DEGREE_PER_REVOLUTION * config_.pulse_per_revolution +
+        config_.zero_offset);
 }
 
 int32_t zeroerr::ZeroerrDriver::velocity(const double value)
 {
-    return static_cast<int32_t>(value / DEGREE_PER_REVOLUTION * config_.pulse_per_revolution);
+    const double encoder_velocity = value * config_.gear_ratio;
+    return static_cast<int32_t>(
+        encoder_velocity / DEGREE_PER_REVOLUTION * config_.pulse_per_revolution);
 }
 
 int16_t zeroerr::ZeroerrDriver::effort(const double value)
 {
-    return static_cast<int16_t>(value / config_.rated_effort * 100 / config_.unit_effort);
+    return static_cast<int16_t>(
+        value / config_.gear_ratio / config_.rated_effort * 100 / config_.unit_effort);
 }

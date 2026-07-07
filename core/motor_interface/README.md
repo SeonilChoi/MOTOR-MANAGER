@@ -173,6 +173,8 @@ It contains the following values: `Fault`, `SwitchOnDisabled`, `ReadyToSwitchOn`
 | --- | --- | --- | --- |
 | `id` | `uint8_t` | Driver ID. | `0` |
 | `pulse_per_revolution` | `uint32_t` | Number of pulses per revolution. | `0` |
+| `zero_offset` | `int32_t` | Raw internal encoder value used as the output zero position offset. | `0` |
+| `gear_ratio` | `double` | Ratio of internal encoder motion to outer output motion. Must not be zero. | `1` |
 | `rated_effort` | `double` | Rated effort, such as Nm or N. | `0` |
 | `unit_effort` | `double` | Unit scale per rated effort. | `0` |
 | `lower` | `double` | Minimum position limit, such as degree or mm. | `0` |
@@ -386,6 +388,8 @@ colcon build --packages-select motor_manager
 | --- | --- | --- | --- |
 | `id` | `uint8_t` | 드라이버의 ID | `0` |
 | `pulse_per_revolution` | `uint32_t` | 회전 당 펄스 수 | `0` |
+| `zero_offset` | `int32_t` | 출력 0 위치로 사용할 내부 엔코더 raw 값 | `0` |
+| `gear_ratio` | `double` | 가장 바깥 출력 움직임 대비 내부 인코더 움직임의 비율. 0이면 안 된다. | `1` |
 | `rated_effort` | `double` | 정격 힘 (e.g. Nm, N) | `0` |
 | `unit_effort` | `double` | 정격 힘에 대한 단위 스케일 | `0` |
 | `lower` | `double` | 최소 제한 위치 (e.g. degree, mm) | `0` |

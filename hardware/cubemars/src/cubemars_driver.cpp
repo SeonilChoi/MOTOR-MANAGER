@@ -191,35 +191,48 @@ uint16_t cubemars::CubemarsDriver::newSetPointControlword() const
 
 double cubemars::CubemarsDriver::position(const int32_t value)
 {
-    return uintToFloat(value, params_.p_min, params_.p_max, 16) *
-           static_cast<double>(params_.axis_direction);
+    const int raw_position =
+        static_cast<int>(value) -
+        config_.zero_offset;
+    const double encoder_position =
+        uintToFloat(raw_position, params_.p_min, params_.p_max, 16) *
+        static_cast<double>(params_.axis_direction);
+    return encoder_position / config_.gear_ratio;
 }
 
 double cubemars::CubemarsDriver::velocity(const int32_t value)
 {
-    return uintToFloat(value, params_.v_min, params_.v_max, 12) *
-           static_cast<double>(params_.axis_direction);
+    const double encoder_velocity =
+        uintToFloat(value, params_.v_min, params_.v_max, 12) *
+        static_cast<double>(params_.axis_direction);
+    return encoder_velocity / config_.gear_ratio;
 }
 
 double cubemars::CubemarsDriver::effort(const int16_t value)
 {
-    return uintToFloat(value, params_.t_min, params_.t_max, 12) *
-           static_cast<double>(params_.axis_direction);
+    const double motor_effort =
+        uintToFloat(value, params_.t_min, params_.t_max, 12) *
+        static_cast<double>(params_.axis_direction);
+    return motor_effort * config_.gear_ratio;
 }
 
 int32_t cubemars::CubemarsDriver::position(const double value)
 {
-    return floatToUint(
-        value * static_cast<double>(params_.axis_direction),
+    const int raw_position = floatToUint(
+        value * config_.gear_ratio * static_cast<double>(params_.axis_direction),
         params_.p_min,
         params_.p_max,
         16);
+    return std::clamp(
+        raw_position + config_.zero_offset,
+        0,
+        (1 << 16) - 1);
 }
 
 int32_t cubemars::CubemarsDriver::velocity(const double value)
 {
     return floatToUint(
-        value * static_cast<double>(params_.axis_direction),
+        value * config_.gear_ratio * static_cast<double>(params_.axis_direction),
         params_.v_min,
         params_.v_max,
         12);
@@ -228,7 +241,7 @@ int32_t cubemars::CubemarsDriver::velocity(const double value)
 int16_t cubemars::CubemarsDriver::effort(const double value)
 {
     return static_cast<int16_t>(floatToUint(
-        value * static_cast<double>(params_.axis_direction),
+        value / config_.gear_ratio * static_cast<double>(params_.axis_direction),
         params_.t_min,
         params_.t_max,
         12));
@@ -253,7 +266,8 @@ bool cubemars::CubemarsDriver::encodeSocketcanDisable(
 bool cubemars::CubemarsDriver::encodeSocketcanCommand(
     uint8_t node_id,
     const motor_interface::motor_frame_t& command,
-    socketcan::socketcan_frame_t& frame) const
+    socketcan::socketcan_frame_t& frame,
+    bool debug_mode) const
 {
     const bool use_position =
         rxFieldEnabled(motor_interface::ID_TARGET_POSITION) &&
@@ -270,15 +284,21 @@ bool cubemars::CubemarsDriver::encodeSocketcanCommand(
         clampRange(command.position, config_.lower, config_.upper) : 0.0;
     const double velocity = use_velocity ? clampAbs(command.velocity, config_.speed) : 0.0;
     const double effort = use_effort ? clampAbs(command.effort, config_.rated_effort) : 0.0;
-    const double p_des = position * direction;
-    const double v_des = velocity * direction;
-    const double tau_ff = effort * direction;
+    const double p_des = position * config_.gear_ratio * direction;
+    const double v_des = velocity * config_.gear_ratio * direction;
+    const double tau_ff = effort / config_.gear_ratio * direction;
     const double kp = rxFieldEnabled(motor_interface::ID_TARGET_KP) && use_position ?
         default_kp_ : 0.0;
     const double kd = rxFieldEnabled(motor_interface::ID_TARGET_KD) && (use_position || use_velocity) ?
         default_kd_ : 0.0;
 
-    const int p_int = floatToUint(p_des, params_.p_min, params_.p_max, 16);
+    const int p_int = debug_mode && use_position ?
+        std::clamp(static_cast<int>(command.encoder), 0, (1 << 16) - 1) :
+        std::clamp(
+            floatToUint(p_des, params_.p_min, params_.p_max, 16) +
+                config_.zero_offset,
+            0,
+            (1 << 16) - 1);
     const int v_int = floatToUint(v_des, params_.v_min, params_.v_max, 12);
     const int kp_int = floatToUint(kp, params_.kp_min, params_.kp_max, 12);
     const int kd_int = floatToUint(kd, params_.kd_min, params_.kd_max, 12);
@@ -322,13 +342,21 @@ bool cubemars::CubemarsDriver::decodeSocketcanStatus(
         const double direction = static_cast<double>(params_.axis_direction);
 
         if (txFieldEnabled(motor_interface::ID_CURRENT_POSITION)) {
-            status.position = static_cast<double>(p_int) * servo_position_scale_ * direction;
+            status.encoder = p_int;
+            status.position =
+                static_cast<double>(
+                    static_cast<int>(p_int) - config_.zero_offset) *
+                servo_position_scale_ * direction / config_.gear_ratio;
         }
         if (txFieldEnabled(motor_interface::ID_CURRENT_VELOCITY)) {
-            status.velocity = static_cast<double>(v_int) * servo_velocity_scale_ * direction;
+            status.velocity =
+                static_cast<double>(v_int) * servo_velocity_scale_ *
+                direction / config_.gear_ratio;
         }
         if (txFieldEnabled(motor_interface::ID_CURRENT_EFFORT)) {
-            status.effort = static_cast<double>(i_int) * servo_current_scale_ * direction;
+            status.effort =
+                static_cast<double>(i_int) * servo_current_scale_ *
+                direction * config_.gear_ratio;
         }
 
         status.statusword = 1;
@@ -345,13 +373,23 @@ bool cubemars::CubemarsDriver::decodeSocketcanStatus(
 
     const double direction = static_cast<double>(params_.axis_direction);
     if (txFieldEnabled(motor_interface::ID_CURRENT_POSITION)) {
-        status.position = uintToFloat(p_int, params_.p_min, params_.p_max, 16) * direction;
+        status.encoder = static_cast<int32_t>(p_int);
+        status.position =
+            uintToFloat(
+                p_int - config_.zero_offset,
+                params_.p_min,
+                params_.p_max,
+                16) * direction / config_.gear_ratio;
     }
     if (txFieldEnabled(motor_interface::ID_CURRENT_VELOCITY)) {
-        status.velocity = uintToFloat(v_int, params_.v_min, params_.v_max, 12) * direction;
+        status.velocity =
+            uintToFloat(v_int, params_.v_min, params_.v_max, 12) *
+            direction / config_.gear_ratio;
     }
     if (txFieldEnabled(motor_interface::ID_CURRENT_EFFORT)) {
-        status.effort = uintToFloat(t_int, params_.t_min, params_.t_max, 12) * direction;
+        status.effort =
+            uintToFloat(t_int, params_.t_min, params_.t_max, 12) *
+            direction * config_.gear_ratio;
     }
 
     status.statusword = 1;

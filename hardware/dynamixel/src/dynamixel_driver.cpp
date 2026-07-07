@@ -152,17 +152,23 @@ void dynamixel::DynamixelDriver::loadParameters(const std::string& param_file)
         if (!loadEntry(i, e_cfg, false)) continue;
 
         if (e_cfg.id == motor_interface::ID_MIN_POSITION_LIMIT) {
-            motor_interface::fill<int32_t>(position(config_.lower), e_cfg.data);
+            const int32_t lower = position(config_.lower);
+            const int32_t upper = position(config_.upper);
+            motor_interface::fill<int32_t>(std::min(lower, upper), e_cfg.data);
         } else if (e_cfg.id == motor_interface::ID_MAX_POSITION_LIMIT) {
-            motor_interface::fill<int32_t>(position(config_.upper), e_cfg.data);
+            const int32_t lower = position(config_.lower);
+            const int32_t upper = position(config_.upper);
+            motor_interface::fill<int32_t>(std::max(lower, upper), e_cfg.data);
         } else if (e_cfg.id == motor_interface::ID_MAX_MOTOR_SPEED) {
+            const double encoder_speed = std::fabs(config_.speed * config_.gear_ratio);
             motor_interface::fill<uint32_t>(
-                static_cast<uint32_t>(std::llround(std::fabs(config_.speed) * DEG_TO_RAD / velocity_unit_)),
+                static_cast<uint32_t>(std::llround(encoder_speed * DEG_TO_RAD / velocity_unit_)),
                 e_cfg.data
             );
         } else if (e_cfg.id == motor_interface::ID_PROFILE_VELOCITY) {
+            const double encoder_velocity = std::fabs(config_.profile_velocity * config_.gear_ratio);
             motor_interface::fill<uint32_t>(
-                static_cast<uint32_t>(std::llround(std::fabs(config_.profile_velocity) * DEG_TO_RAD / velocity_unit_)),
+                static_cast<uint32_t>(std::llround(encoder_velocity * DEG_TO_RAD / velocity_unit_)),
                 e_cfg.data
             );
         } else if (e_cfg.id == motor_interface::ID_PROFILE_ACCELERATION ||
@@ -170,9 +176,14 @@ void dynamixel::DynamixelDriver::loadParameters(const std::string& param_file)
         {
             const double value = config_.profile_acceleration > 0.0 ?
                 config_.profile_acceleration : config_.acceleration;
-            motor_interface::fill<uint32_t>(accelerationRawFromDegreePerSec2(value), e_cfg.data);
+            motor_interface::fill<uint32_t>(
+                accelerationRawFromDegreePerSec2(std::fabs(value * config_.gear_ratio)),
+                e_cfg.data
+            );
         } else if (e_cfg.id == motor_interface::ID_MAX_EFFORT) {
-            const int16_t current = effort(config_.rated_effort);
+            const double unit = current_unit_ * config_.unit_effort;
+            const int16_t current = unit == 0.0 ?
+                0 : static_cast<int16_t>(std::lround(config_.rated_effort / config_.gear_ratio / unit));
             if (e_cfg.type == motor_interface::DataType::U16) {
                 motor_interface::fill<uint16_t>(static_cast<uint16_t>(std::max<int16_t>(current, 0)), e_cfg.data);
             } else {
@@ -255,28 +266,40 @@ uint16_t dynamixel::DynamixelDriver::newSetPointControlword() const
 
 double dynamixel::DynamixelDriver::position(const int32_t value)
 {
+    double encoder_position{0.0};
     if (has_position_model_) {
-        return (static_cast<double>(value) - zero_position_) * positionUnit() * RAD_TO_DEG;
+        encoder_position =
+            (static_cast<double>(value) - config_.zero_offset - zero_position_) *
+            positionUnit() * RAD_TO_DEG;
+    } else {
+        encoder_position =
+            (static_cast<double>(value) - config_.zero_offset) /
+            static_cast<double>(config_.pulse_per_revolution) * DEGREE_PER_REVOLUTION;
     }
 
-    return static_cast<double>(value) / static_cast<double>(config_.pulse_per_revolution) * DEGREE_PER_REVOLUTION;
+    return encoder_position / config_.gear_ratio;
 }
 
 double dynamixel::DynamixelDriver::velocity(const int32_t value)
 {
-    return static_cast<double>(value) * velocity_unit_ * RAD_TO_DEG;
+    const double encoder_velocity = static_cast<double>(value) * velocity_unit_ * RAD_TO_DEG;
+    return encoder_velocity / config_.gear_ratio;
 }
 
 double dynamixel::DynamixelDriver::effort(const int16_t value)
 {
-    return static_cast<double>(value) * current_unit_ * config_.unit_effort;
+    const double motor_effort = static_cast<double>(value) * current_unit_ * config_.unit_effort;
+    return motor_effort * config_.gear_ratio;
 }
 
 int32_t dynamixel::DynamixelDriver::position(const double value)
 {
+    const double encoder_position = value * config_.gear_ratio;
     if (has_position_model_) {
         const int32_t raw_position =
-            static_cast<int32_t>(std::lround(zero_position_ + value * DEG_TO_RAD / positionUnit()));
+            static_cast<int32_t>(std::lround(
+                zero_position_ + config_.zero_offset +
+                encoder_position * DEG_TO_RAD / positionUnit()));
         const int32_t min_raw =
             static_cast<int32_t>(std::lround(std::min(min_position_, max_position_)));
         const int32_t max_raw =
@@ -289,20 +312,24 @@ int32_t dynamixel::DynamixelDriver::position(const double value)
         return raw_position;
     }
 
-    return static_cast<int32_t>(std::lround(value / DEGREE_PER_REVOLUTION * config_.pulse_per_revolution));
+    return static_cast<int32_t>(
+        std::lround(
+            encoder_position / DEGREE_PER_REVOLUTION *
+            config_.pulse_per_revolution + config_.zero_offset));
 }
 
 int32_t dynamixel::DynamixelDriver::velocity(const double value)
 {
     if (velocity_unit_ == 0.0) return 0;
-    return static_cast<int32_t>(std::lround(value * DEG_TO_RAD / velocity_unit_));
+    return static_cast<int32_t>(
+        std::lround(value * config_.gear_ratio * DEG_TO_RAD / velocity_unit_));
 }
 
 int16_t dynamixel::DynamixelDriver::effort(const double value)
 {
     const double unit = current_unit_ * config_.unit_effort;
     if (unit == 0.0) return 0;
-    return static_cast<int16_t>(std::lround(value / unit));
+    return static_cast<int16_t>(std::lround(value / config_.gear_ratio / unit));
 }
 
 void dynamixel::DynamixelDriver::loadModelFile(const std::string& model_file)

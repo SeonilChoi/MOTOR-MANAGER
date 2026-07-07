@@ -53,7 +53,7 @@ inline DriverType toDriverType(const std::string& type) {
 
 class MotorManager {
 public:
-    explicit MotorManager(const std::string& config_file);
+    explicit MotorManager(const std::string& config_file, const bool debug = false);
 
     virtual ~MotorManager();
 
@@ -118,6 +118,8 @@ private:
     std::unique_ptr<motor_interface::MotorController> controllers_[motor_interface::MAX_CONTROLLER_SIZE];
 
     uint32_t period_{0};
+
+    const bool debug_{false};
 
     uint8_t number_of_controllers_{0};
 

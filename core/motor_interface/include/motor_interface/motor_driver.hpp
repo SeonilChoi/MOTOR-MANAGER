@@ -76,6 +76,8 @@ enum class DriverState {
 struct driver_config_t {
     uint8_t id;
     uint32_t pulse_per_revolution;
+    int32_t zero_offset{0};
+    double gear_ratio{1.0};
     double rated_effort;
     double unit_effort;
     double lower;

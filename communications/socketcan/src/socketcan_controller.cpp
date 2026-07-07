@@ -96,7 +96,7 @@ void socketcan::SocketcanController::write(const motor_interface::motor_frame_t&
 void socketcan::SocketcanController::sendCommandFrame(const motor_interface::motor_frame_t& command)
 {
     socketcan_frame_t frame{};
-    if (!socketcan_driver_->encodeSocketcanCommand(can_id_, command, frame)) {
+    if (!socketcan_driver_->encodeSocketcanCommand(can_id_, command, frame, debug_mode_)) {
         throw std::runtime_error("Failed to encode SocketCAN command frame.");
     }
 
