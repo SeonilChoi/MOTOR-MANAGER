@@ -81,11 +81,11 @@ drivers:
 | `1` | Profile velocity |
 | `2` | Profile effort |
 
-In the full workspace, runtime bridge examples live in
-`ros2/motion_system_ros2/motion_control_bridge/config`. Driver hardware
-parameter files live under `lib/motor_manager/hardware/<driver>/param` and are
-referenced with `package://motor_manager/...` paths. When `param_file` points to
-a directory, `motor_manager` loads `<param_file>/<driver_type>.yaml`.
+In the full workspace, runtime motor configs live in
+`~/colcon_ws/files/motor_manager`. Driver hardware parameter files live under
+`lib/motor_manager/hardware/<driver>/param` and are referenced with
+`package://motor_manager/...` paths. When `param_file` points to a directory,
+`motor_manager` loads `<param_file>/<driver_type>.yaml`.
 Dynamixel model files are stored under
 `hardware/dynamixel/param/control_table` and are referenced relative to the
 Dynamixel YAML file.
@@ -224,9 +224,9 @@ drivers:
 | `1` | Profile velocity |
 | `2` | Profile effort |
 
-전체 workspace에서 런타임 bridge 예제는
-`ros2/motion_system_ros2/motion_control_bridge/config`에 둔다. driver 하드웨어
-파라미터 파일은 `lib/motor_manager/hardware/<driver>/param` 아래에 있으며
+전체 workspace에서 runtime motor config는
+`~/colcon_ws/files/motor_manager`에 둔다. driver 하드웨어 파라미터 파일은
+`lib/motor_manager/hardware/<driver>/param` 아래에 있으며
 `package://motor_manager/...` 경로로 참조한다. `param_file`이 디렉터리를
 가리키면 `motor_manager`는 `<param_file>/<driver_type>.yaml`을 읽는다.
 Dynamixel model 파일은 `hardware/dynamixel/param/control_table`에 있으며
