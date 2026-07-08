@@ -267,7 +267,7 @@ bool cubemars::CubemarsDriver::encodeSocketcanCommand(
     uint8_t node_id,
     const motor_interface::motor_frame_t& command,
     socketcan::socketcan_frame_t& frame,
-    bool debug_mode) const
+    bool jog_mode) const
 {
     const bool use_position =
         rxFieldEnabled(motor_interface::ID_TARGET_POSITION) &&
@@ -292,7 +292,7 @@ bool cubemars::CubemarsDriver::encodeSocketcanCommand(
     const double kd = rxFieldEnabled(motor_interface::ID_TARGET_KD) && (use_position || use_velocity) ?
         default_kd_ : 0.0;
 
-    const int p_int = debug_mode && use_position ?
+    const int p_int = jog_mode && use_position ?
         std::clamp(static_cast<int>(command.encoder), 0, (1 << 16) - 1) :
         std::clamp(
             floatToUint(p_des, params_.p_min, params_.p_max, 16) +

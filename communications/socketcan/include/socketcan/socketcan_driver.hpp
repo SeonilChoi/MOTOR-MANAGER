@@ -27,7 +27,7 @@ public:
         uint8_t can_id,
         const motor_interface::motor_frame_t& command,
         socketcan_frame_t& frame,
-        bool debug_mode) const = 0;
+        bool jog_mode) const = 0;
 
     virtual bool acceptsSocketcanStatusFrame(
         uint8_t can_id,

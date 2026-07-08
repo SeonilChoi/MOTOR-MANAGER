@@ -81,8 +81,8 @@ std::filesystem::path resolve_package_uri(const std::string& uri)
 
 } // namespace
 
-motor_manager::MotorManager::MotorManager(const std::string& config_file, const bool debug)
-    : debug_(debug)
+motor_manager::MotorManager::MotorManager(const std::string& config_file, const bool jog_mode)
+    : jog_mode_(jog_mode)
 {
     for (auto& request : controller_enable_requested_) {
         request.store(true, std::memory_order_release);
@@ -346,7 +346,7 @@ void motor_manager::MotorManager::initialize()
         const uint8_t m_id = controllers_[i]->master_id();
         const uint8_t d_id = controllers_[i]->driver_id();
 
-        controllers_[i]->set_debug_mode(debug_);
+        controllers_[i]->set_jog_mode(jog_mode_);
         controllers_[i]->initialize(*masters_.at(m_id), *drivers_.at(d_id));
     }
 
@@ -354,7 +354,7 @@ void motor_manager::MotorManager::initialize()
         motor_interface::MotorMaster& master = *serial_masters_.at(controller_indices_iter.first);
         for (uint8_t i : controller_indices_iter.second) {
             const uint8_t d_id = controllers_[i]->driver_id();
-            controllers_[i]->set_debug_mode(debug_);
+            controllers_[i]->set_jog_mode(jog_mode_);
             controllers_[i]->initialize(master, *drivers_.at(d_id));
         }
     }

@@ -46,7 +46,7 @@ public:
         uint8_t node_id,
         const motor_interface::motor_frame_t& command,
         socketcan::socketcan_frame_t& frame,
-        bool debug_mode) const override;
+        bool jog_mode) const override;
 
     bool acceptsSocketcanStatusFrame(
         uint8_t node_id,

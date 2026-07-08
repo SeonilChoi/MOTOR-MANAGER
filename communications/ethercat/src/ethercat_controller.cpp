@@ -105,7 +105,7 @@ void ethercat::EthercatController::write(const motor_interface::motor_frame_t& c
             rx_interfaces[i].type = motor_interface::DataType::S32;
             rx_interfaces[i].size = 4;
             const int32_t target_position =
-                debug_mode_ ? command.encoder : driver_->position(command.position);
+                jog_mode_ ? command.encoder : driver_->position(command.position);
             motor_interface::fill<int32_t>(target_position, rx_interfaces[i].data);
         } else if (id == motor_interface::ID_TARGET_VELOCITY) {
             rx_interfaces[i].id = id;

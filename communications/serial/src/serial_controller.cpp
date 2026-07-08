@@ -209,7 +209,7 @@ void serial::SerialController::write(const motor_interface::motor_frame_t& comma
             fillInterfaceValue(*descriptor, command.controlword, rx_interfaces[i]);
         } else if (id == motor_interface::ID_TARGET_POSITION) {
             const int32_t target_position =
-                debug_mode_ ? command.encoder : driver_->position(command.position);
+                jog_mode_ ? command.encoder : driver_->position(command.position);
             fillInterfaceValue(*descriptor, target_position, rx_interfaces[i]);
         } else if (id == motor_interface::ID_TARGET_VELOCITY) {
             fillInterfaceValue(*descriptor, driver_->velocity(command.velocity), rx_interfaces[i]);
