@@ -1,5 +1,15 @@
 add_library(motor_manager SHARED src/motor_manager.cpp)
 
+# IgH EtherCAT is commonly installed below /opt/etherlab, which is not in the
+# dynamic linker's default search path.  Preserve the directory found at
+# configure time so installed ROS 2 executables can load libethercat.so.
+get_filename_component(MOTOR_MANAGER_IGH_ETHERCAT_LIB_DIR
+  "${MOTOR_MANAGER_IGH_ETHERCAT_LIB}" DIRECTORY)
+set_target_properties(motor_manager PROPERTIES
+  BUILD_RPATH "${MOTOR_MANAGER_IGH_ETHERCAT_LIB_DIR}"
+  INSTALL_RPATH "${MOTOR_MANAGER_IGH_ETHERCAT_LIB_DIR}"
+)
+
 target_include_directories(motor_manager PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
